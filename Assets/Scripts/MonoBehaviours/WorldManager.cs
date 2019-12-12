@@ -42,7 +42,7 @@ public class WorldManager : MonoBehaviour
     public async void Start()
     {
         float currTime = Time.realtimeSinceStartup;
-        int worldHeight = 4 * 16 / Chunk.CHUNK_SIZE;
+        int worldHeight = 5 * 16 / Chunk.CHUNK_SIZE;
         int worldWidth = 5 * 16 / Chunk.CHUNK_SIZE;
         Cursor.lockState = CursorLockMode.Locked;
 

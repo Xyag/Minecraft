@@ -27,8 +27,6 @@ public class WorldLoader : MonoBehaviour
             yield return new WaitForSecondsRealtime(CheckInterval);
             if (!checking)
                 checkChunkLoading();
-            else
-                Debug.Log("not checking");
         }
     }
     private async Task checkChunkLoading()
@@ -60,11 +58,6 @@ public class WorldLoader : MonoBehaviour
                     if (!world.loadedChunks.ContainsKey(coords))
                     {
                         chunkBuffer.Add(coords);
-                    }
-                    else
-                    {
-                        Debug.Log(playerChunkCoords);
-                        Debug.Log("rejecting for presence: " + coords);
                     }
                 }
             }

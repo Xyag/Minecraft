@@ -18,15 +18,15 @@ public class World
         e.world = this;
         return go;
     }
-    public void createExplosion(float explosionStrength, Vector3Int origin)
+    public async void createExplosion(float explosionStrength, Vector3Int origin)
     {
-        int size = (int)explosionStrength;
-        int csize = Mathf.CeilToInt(size / (float)Chunk.CHUNK_SIZE);
-        for (int x = -size; x < size; x++)
+        int size = Mathf.CeilToInt(explosionStrength);
+        int csize = Mathf.CeilToInt((float)size / (float)Chunk.CHUNK_SIZE);
+        for (int x = -size; x <= size; x++)
         {
-            for (int y = -size; y < size; y++)
+            for (int y = -size; y <= size; y++)
             {
-                for (int z = -size; z < size; z++)
+                for (int z = -size; z <= size; z++)
                 {
                     Vector3Int blockPos = new Vector3Int(x, y, z);
                     if (blockPos.sqrMagnitude < explosionStrength * explosionStrength)
@@ -42,16 +42,20 @@ public class World
             }
         }
         Vector3Int chunkPos = WorldToChunkCoords(origin);
-        for (int x = -csize; x < csize; x++)
+        List<Chunk> remeshQueue = new List<Chunk>(csize * csize * csize * 5);
+        for (int x = -csize; x <= csize; x++)
         {
-            for (int y = -csize; y < csize; y++)
+            for (int y = -csize; y <= csize; y++)
             {
-                for (int z = -csize; z < csize; z++)
+                for (int z = -csize; z <= csize; z++)
                 {
-                    MeshGenerator.remeshChunk(this, getChunk(chunkPos + new Vector3Int(x, y, z)));
+                    if (x * x + y * y + z * z <= (csize + 1) * (csize + 1))
+                        remeshQueue.Add(getChunk(chunkPos + new Vector3Int(x, y, z)));
+                    //MeshGenerator.remeshChunk(this, getChunk(chunkPos + new Vector3Int(x, y, z)));
                 }
             }
         }
+        Task t = MeshGenerator.remeshAll(remeshQueue, this, remeshQueue.Count);
         foreach (var en in loadedEntities)
         {
             if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
@@ -62,6 +66,7 @@ public class World
         var explo = MonoBehaviour.Instantiate(explosionParticles);
         explo.transform.position = origin;
         MonoBehaviour.Destroy(explo, 5);
+        await t;
     }
     //not thread safe: writes to loadedChunks
     public void loadChunk(Chunk c)

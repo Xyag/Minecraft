@@ -56,6 +56,20 @@ public static class MeshGenerator
             meshTasks.Remove(finishedTask);
         }
     }
+    public static async Task remeshAll(IEnumerable<Chunk> collection, World world, int initSize = 1)
+    {
+        List<Task<Chunk>> meshTasks = new List<Task<Chunk>>();
+        foreach (var item in collection)
+        {
+            meshTasks.Add(Task.Run<Chunk>(() => MeshGenerator.generateMesh(world, item)));
+        }
+        while (meshTasks.Count > 0)
+        {
+            var finishedTask = await Task.WhenAny(meshTasks);
+            replaceChunkMesh(finishedTask.Result, finishedTask.Result.renderData, world);
+            meshTasks.Remove(finishedTask);
+        }
+    }
     public static void spawnChunk(Chunk chunk)
     {
         var data = chunk.renderData;
@@ -78,10 +92,63 @@ public static class MeshGenerator
         {
             BoxCollider box = chunkObject.AddComponent<BoxCollider>();
             box.material = chunkPhysMaterial;
-            box.size = Vector3.one;
-            box.center = new Vector3(data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-              data.boxColliders[i].y - 0.5f - (float)data.boxColliders[i].dy * 0.5f, data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
+            box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
             box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+        }
+    }
+    public static void replaceChunkMesh(Chunk chunk, MeshData data, World world)
+    {
+        if (chunk != null && chunk.gameObject != null)
+        {
+            MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
+            mf.mesh.Clear();
+            mf.mesh.SetVertices(data.vertices);
+            mf.mesh.SetTriangles(data.triangles, 0);
+            mf.mesh.SetNormals(data.normals);
+            mf.mesh.SetUVs(0, data.uvs);
+
+            List<BoxCollider> colliders = new List<BoxCollider>();
+            chunk.gameObject.GetComponents<BoxCollider>(colliders);
+            int space = colliders.Count;
+
+            if (space > data.boxColliders.Count)
+            {
+                for (int i = 0; i < data.boxColliders.Count; i++)
+                {
+                    var box = colliders[i];
+                    box.enabled = true;
+                    box.material = chunkPhysMaterial;
+                    box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+                        (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
+                    box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                }
+                for (int i = data.boxColliders.Count; i < space; i++)
+                {
+                    colliders[i].enabled = false;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < space; i++)
+                {
+                    var box = colliders[i];
+                    box.enabled = true;
+                    box.material = chunkPhysMaterial;
+                    box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+                        (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
+                    box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz); ;
+                }
+                for (int i = space; i < data.boxColliders.Count; i++)
+                {
+                    var box = chunk.gameObject.AddComponent<BoxCollider>();
+                    box.enabled = true;
+                    box.material = chunkPhysMaterial;
+                    box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+                        (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
+                    box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                }
+            }
         }
     }
     public static void remeshChunk(World world, Chunk chunk, bool alertNeighbors = true)
@@ -111,7 +178,8 @@ public static class MeshGenerator
                         var box = colliders[i];
                         box.enabled = true;
                         box.material = chunkPhysMaterial;
-                        box.center = new Vector3(data.boxColliders[i].x, data.boxColliders[i].y, data.boxColliders[i].z);
+                        box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
                         box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
                     }
                     for (int i = data.boxColliders.Count; i < space; i++)
@@ -126,15 +194,17 @@ public static class MeshGenerator
                         var box = colliders[i];
                         box.enabled = true;
                         box.material = chunkPhysMaterial;
-                        box.center = new Vector3(data.boxColliders[i].x, data.boxColliders[i].y, data.boxColliders[i].z);
-                        box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                        box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
+                        box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz); ;
                     }
                     for (int i = space; i < data.boxColliders.Count; i++)
                     {
                         var box = chunk.gameObject.AddComponent<BoxCollider>();
                         box.enabled = true;
                         box.material = chunkPhysMaterial;
-                        box.center = new Vector3(data.boxColliders[i].x, data.boxColliders[i].y, data.boxColliders[i].z);
+                        box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
+              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
                         box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
                     }
                 }
@@ -808,7 +878,8 @@ public static class MeshGenerator
 
         //now we do collision
         //going y->x->z cause i think we will have bigger rectangles in the xz plane
-        for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+        //TODO: fix this shit im bored of working on it for now
+        /*for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
         {
             for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
             {
@@ -863,14 +934,12 @@ public static class MeshGenerator
                         yExtent++;
                     }
                 endYLoop:
-                    boxColliders.Add(new BoxInt(x, y, z, xExtent, yExtent, zExtent));
+                    boxColliders.Add(new BoxInt(x, y, z, xExtent + 1, yExtent + 1, zExtent + 1));
                 }
             }
-        }
-        //Debug.Log(boxCount);
-        //-------------OLD MESHING ALGORITHM-----------
-        //int faceIndex = 0;
-        /*for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+        }*/
+        //-------------OLD COLLISION ALGORITHM-----------
+        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
         {
             for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
             {
@@ -878,48 +947,17 @@ public static class MeshGenerator
                 {
                     if (chunk.blocks[x, y, z].type != BlockType.empty && chunk.blocks[x, y, z].type != BlockType.chunk_border)
                     {
-                        Vector3 blockPos = new Vector3(x, y, z);
                         world.getSurroundingBlocks(chunk.chunkCoords, new Vector3Int(x, y, z), dataStore);
-                        /*if (!dataStore[(int)Direction.NegX].opaque)
+                        if (!dataStore[(int)Direction.PosX].fullCollision || !dataStore[(int)Direction.PosY].fullCollision || !dataStore[(int)Direction.PosZ].fullCollision
+                                || !dataStore[(int)Direction.NegX].fullCollision || !dataStore[(int)Direction.NegY].fullCollision || !dataStore[(int)Direction.NegZ].fullCollision)
                         {
-                            generateFace(faceIndex, Direction.NegX, blockPos, vertices, triangles, normals, uvs, chunk.blocks[x, y, z]);
-                            faceIndex++;
+                            boxColliders.Add(new BoxInt(x, y, z, 1, 1, 1));
                         }
-                        if (!dataStore[(int)Direction.PosX].opaque)
-                        {
-                            generateFace(faceIndex, Direction.PosX, blockPos, vertices, triangles, normals, uvs, chunk.blocks[x, y, z]);
-                            faceIndex++;
-                        }
-                        if (!dataStore[(int)Direction.NegY].opaque)
-                        {
-                            generateFace(faceIndex, Direction.NegY, blockPos, vertices, triangles, normals, uvs, chunk.blocks[x, y, z]);
-                            faceIndex++;
-                        }
-                        if (!dataStore[(int)Direction.PosY].opaque)
-                        {
-                            generateFace(faceIndex, Direction.PosY, blockPos, vertices, triangles, normals, uvs, chunk.blocks[x, y, z]);
-                            faceIndex++;
-                        }
-                        if (!dataStore[(int)Direction.NegZ].opaque)
-                        {
-                            generateFace(faceIndex, Direction.NegZ, blockPos, vertices, triangles, normals, uvs, chunk.blocks[x, y, z]);
-                            faceIndex++;
-                        }
-                        if (!dataStore[(int)Direction.PosZ].opaque)
-                        {
-                            generateFace(faceIndex, Direction.PosZ, blockPos, vertices, triangles, normals, uvs, chunk.blocks[x, y, z]);
-                            faceIndex++;
-                        }
-        if (!dataStore[(int)Direction.PosX].fullCollision || !dataStore[(int)Direction.PosY].fullCollision || !dataStore[(int)Direction.PosZ].fullCollision
-                || !dataStore[(int)Direction.NegX].fullCollision || !dataStore[(int)Direction.NegY].fullCollision || !dataStore[(int)Direction.NegZ].fullCollision)
-        {
-            boxColliders.Add(new BoxInt(x, y, z, 1, 1, 1));
-        }
-    }
+                    }
 
-}
+                }
             }
-        }*/
+        }
         renderData.faceCount = faceIndex;
         MeshData meshData = new MeshData
         {

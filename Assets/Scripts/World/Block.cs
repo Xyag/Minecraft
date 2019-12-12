@@ -15,7 +15,7 @@ public struct Block
         new BlockData { type = BlockType.iron_ore, opaque = true, fullCollision = true, texture = new BlockTexture(5)},
         new BlockData { type = BlockType.leaves, opaque = true, fullCollision = true, texture = new BlockTexture(6)},
         new BlockData { type = BlockType.sand, opaque = true, fullCollision = true, texture = new BlockTexture(7)},
-        new TNTBlockData { type = BlockType.tnt, opaque = true, fullCollision = true, texture = new BlockTexture(8),interactable = true, explosionStrength = 10, fuseLength = 2},
+        new TNTBlockData { type = BlockType.tnt, opaque = true, fullCollision = true, texture = new BlockTexture(8),interactable = true, explosionStrength = 8, fuseLength = 2},
     };
 
     public const int TEXTURE_SIZE = 4;

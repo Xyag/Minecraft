@@ -68,7 +68,7 @@ public static class WorldGenerator
 
         generationLayers.Add(desertGenerator);
         //generationLayers.Add(plainsTrees);
-        //generationLayers.Add(ironGenerator);
+        generationLayers.Add(ironGenerator);
         generationLayers.Add(caveGenerator);
     }
     public static async Task generateRegion(World world, Vector3Int startChunk, int xSize, int ySize, int zSize)

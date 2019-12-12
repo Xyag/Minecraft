@@ -24,7 +24,7 @@ public class BlockPuncer : MonoBehaviour
         }
         if (Input.GetMouseButtonDown(1))
         {
-            Vector3Int dest = GetRayDest() + Vector3Int.up;
+            Vector3Int dest = GetRayDest();
             BlockData dat = worldManager.world.getBlock(dest);
             if (dat.interactable)
             {
@@ -42,25 +42,25 @@ public class BlockPuncer : MonoBehaviour
     {
         RaycastHit hit;
         Physics.Raycast(transform.position, transform.forward, out hit, 10, groundLayerMask);
-        Vector3 blockPoint = hit.point + new Vector3(0.5f, 0.5f, 0.5f);
-        Vector3 roundedBlockPoint = new Vector3(Mathf.Round(blockPoint.x), Mathf.Round(blockPoint.y), Mathf.Round(blockPoint.z));
-        int hitx = (int)hit.point.x;
-        int hity = (int)hit.point.y;
-        int hitz = (int)hit.point.z;
-        if (transform.position.y < hit.point.y && Mathf.Abs(blockPoint.y - roundedBlockPoint.y) < 0.01f)
+        Vector3 blockPoint = hit.point;
+        Vector3Int roundedBlockPoint = new Vector3Int(Mathf.RoundToInt(blockPoint.x), Mathf.RoundToInt(blockPoint.y), Mathf.RoundToInt(blockPoint.z));
+        int hitx = roundedBlockPoint.x;
+        int hity = roundedBlockPoint.y;
+        int hitz = roundedBlockPoint.z;
+        if (transform.position.y > hit.point.y && Mathf.Abs(blockPoint.y - roundedBlockPoint.y) < 0.01f)
         {
             //hitting the y face of the block from the -y direction
-            hity += 1;
+            hity -= 1;
         }
-        if (transform.position.x < hit.point.x && Mathf.Abs(blockPoint.x - roundedBlockPoint.x) < 0.01f)
+        if (transform.position.x > hit.point.x && Mathf.Abs(blockPoint.x - roundedBlockPoint.x) < 0.01f)
         {
             //hitting the x face of the block from the -x direction
-            hitx += 1;
+            hitx -= 1;
         }
-        if (transform.position.z < hit.point.z && Mathf.Abs(blockPoint.z - roundedBlockPoint.z) < 0.01f)
+        if (transform.position.z > hit.point.z && Mathf.Abs(blockPoint.z - roundedBlockPoint.z) < 0.01f)
         {
             //hitting the z face of the block from the -z direction.
-            hitz += 1;
+            hitz -= 1;
         }
         return new Vector3Int(hitx, hity, hitz);
     }
