@@ -47,21 +47,21 @@ public class BlockPuncer : MonoBehaviour
         int hitx = roundedBlockPoint.x;
         int hity = roundedBlockPoint.y;
         int hitz = roundedBlockPoint.z;
-        if (transform.position.y > hit.point.y && Mathf.Abs(blockPoint.y - roundedBlockPoint.y) < 0.01f)
-        {
-            //hitting the y face of the block from the -y direction
-            hity -= 1;
-        }
-        if (transform.position.x > hit.point.x && Mathf.Abs(blockPoint.x - roundedBlockPoint.x) < 0.01f)
-        {
-            //hitting the x face of the block from the -x direction
-            hitx -= 1;
-        }
-        if (transform.position.z > hit.point.z && Mathf.Abs(blockPoint.z - roundedBlockPoint.z) < 0.01f)
-        {
-            //hitting the z face of the block from the -z direction.
-            hitz -= 1;
-        }
+        //if (transform.position.y > hit.point.y && Mathf.Abs(blockPoint.y - roundedBlockPoint.y) < 0.01f)
+        //{
+        //    //hitting the y face of the block from the -y direction
+        //    hity -= 1;
+        //}
+        //if (transform.position.x > hit.point.x && Mathf.Abs(blockPoint.x - roundedBlockPoint.x) < 0.01f)
+        //{
+        //    //hitting the x face of the block from the -x direction
+        //    hitx -= 1;
+        //}
+        //if (transform.position.z > hit.point.z && Mathf.Abs(blockPoint.z - roundedBlockPoint.z) < 0.01f)
+        //{
+        //    //hitting the z face of the block from the -z direction.
+        //    hitz -= 1;
+        //}
         return new Vector3Int(hitx, hity, hitz);
     }
 }

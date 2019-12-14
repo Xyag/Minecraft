@@ -10,12 +10,12 @@ public struct Block
         new BlockData { type = BlockType.empty, opaque = false, fullCollision = false },
         new BlockData { type = BlockType.stone, opaque = true, fullCollision = true, texture = new BlockTexture(0) },
         new BlockData { type = BlockType.dirt, opaque = true, fullCollision = true, texture = new BlockTexture(1) },
-        new BlockData { type = BlockType.grass, opaque = true, fullCollision = true, texture = new BlockTexture(2) },
-        new BlockData { type = BlockType.log, opaque = true, fullCollision = true, texture = new BlockTexture(3,4,3,3,4,3)},
-        new BlockData { type = BlockType.iron_ore, opaque = true, fullCollision = true, texture = new BlockTexture(5)},
-        new BlockData { type = BlockType.leaves, opaque = true, fullCollision = true, texture = new BlockTexture(6)},
-        new BlockData { type = BlockType.sand, opaque = true, fullCollision = true, texture = new BlockTexture(7)},
-        new TNTBlockData { type = BlockType.tnt, opaque = true, fullCollision = true, texture = new BlockTexture(8),interactable = true, explosionStrength = 8, fuseLength = 2},
+        new BlockData { type = BlockType.grass, opaque = true, fullCollision = true, texture = new BlockTexture(2,3,2,2,1,2) },
+        new BlockData { type = BlockType.log, opaque = true, fullCollision = true, texture = new BlockTexture(4,5,4,4,5,4)},
+        new BlockData { type = BlockType.iron_ore, opaque = true, fullCollision = true, texture = new BlockTexture(6)},
+        new BlockData { type = BlockType.leaves, opaque = true, fullCollision = true, texture = new BlockTexture(7)},
+        new BlockData { type = BlockType.sand, opaque = true, fullCollision = true, texture = new BlockTexture(8)},
+        new TNTBlockData { type = BlockType.tnt, opaque = true, fullCollision = true, texture = new BlockTexture(9),interactable = true, explosionStrength = 8, fuseLength = 2},
     };
 
     public const int TEXTURE_SIZE = 4;

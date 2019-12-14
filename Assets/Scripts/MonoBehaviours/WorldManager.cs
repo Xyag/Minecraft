@@ -2,23 +2,25 @@ using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections;
 
+[RequireComponent(typeof(TextureLoader))]
 public class WorldManager : MonoBehaviour
 {
     public GameObject EmptyChunkPrefab;
     public PhysicMaterial ChunkPhysicMaterial;
-    public Texture blockAtlas;
     public World world;
     public GameObject ExplosionParticles;
     public Entity Player;
     public GameObject[] spawnableEntities;
 
+    private TextureLoader textureLoader;
+
     public void Awake()
     {
         Application.targetFrameRate = 60;
+        textureLoader = GetComponent<TextureLoader>();
 
         MeshGenerator.emptyChunk = EmptyChunkPrefab;
         MeshGenerator.chunkPhysMaterial = ChunkPhysicMaterial;
-        MeshGenerator.setBlockAtlas(blockAtlas);
 
         world = new World();
         world.explosionParticles = ExplosionParticles;

@@ -9,21 +9,21 @@ public static class MeshGenerator
 {
     public static GameObject emptyChunk;
     public static PhysicMaterial chunkPhysMaterial;
-    private static Texture blockAtlas;
+    //private static Texture blockAtlas;
     private static int texturesPerRow;
     private static Vector2 textureSize;
     private static Vector2 textureOffset;
     private static Vector2 paddingSize;
 
-    public static void setBlockAtlas(Texture blockAtlas)
-    {
-        //block textures are 16x16 each, with 1px on padding on each side. making the actual image 14x14
-        MeshGenerator.blockAtlas = blockAtlas;
-        texturesPerRow = blockAtlas.width / Block.TEXTURE_SIZE;
-        paddingSize = new Vector2((float)Block.TEXTURE_SIZE / (float)blockAtlas.width, (float)Block.TEXTURE_SIZE / (float)blockAtlas.height);
-        textureSize = new Vector2((float)(Block.TEXTURE_SIZE - 2) / (float)blockAtlas.width, (float)(Block.TEXTURE_SIZE - 2) / (float)blockAtlas.height);
-        textureOffset = new Vector2(1.0f / (float)blockAtlas.width, 1.0f / (float)blockAtlas.height);
-    }
+    //public static void setBlockAtlas(Texture blockAtlas)
+    //{
+    //    //block textures are 16x16 each, with 1px on padding on each side. making the actual image 14x14
+    //    MeshGenerator.blockAtlas = blockAtlas;
+    //    texturesPerRow = blockAtlas.width / Block.TEXTURE_SIZE;
+    //    paddingSize = new Vector2((float)Block.TEXTURE_SIZE / (float)blockAtlas.width, (float)Block.TEXTURE_SIZE / (float)blockAtlas.height);
+    //    textureSize = new Vector2((float)(Block.TEXTURE_SIZE - 2) / (float)blockAtlas.width, (float)(Block.TEXTURE_SIZE - 2) / (float)blockAtlas.height);
+    //    textureOffset = new Vector2(1.0f / (float)blockAtlas.width, 1.0f / (float)blockAtlas.height);
+    //}
     public static async Task spawnAll(IEnumerable<Chunk> collection, World world, int initSize = 1)
     {
         List<Task<Chunk>> meshTasks = new List<Task<Chunk>>(initSize);
@@ -224,243 +224,73 @@ public static class MeshGenerator
         }
 
     }
-    public static void generateFace(int faceIndex, Direction direction, Vector3 blockPos, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, Block block)
-    {
-        //vertices are arranged in clockwise order starting on the top-left of the face when you are facing it.
-        int vertexStart = faceIndex * 4;
-        int triangleStart = faceIndex * 6;
-        BlockData blockData = Block.blockTypes[(int)block.type];
-
-        switch (direction)
-        {
-            case Direction.PosX:
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
-
-                triangles.Add(vertexStart);
-                triangles.Add(vertexStart + 1);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 3);
-                triangles.Add(vertexStart);
-
-                normals.Add(new Vector3(1, 0, 0));
-                normals.Add(new Vector3(1, 0, 0));
-                normals.Add(new Vector3(1, 0, 0));
-                normals.Add(new Vector3(1, 0, 0));
-
-                int texId = blockData.texture.PosX;
-                float uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-                float uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-                uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-                uvs.Add(new Vector2(uvX, uvY));
-
-                break;
-            case Direction.PosY:
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f));
-
-                triangles.Add(vertexStart);
-                triangles.Add(vertexStart + 1);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 3);
-                triangles.Add(vertexStart);
-
-                normals.Add(new Vector3(0, 1, 0));
-                normals.Add(new Vector3(0, 1, 0));
-                normals.Add(new Vector3(0, 1, 0));
-                normals.Add(new Vector3(0, 1, 0));
-
-                texId = blockData.texture.PosY;
-                uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-                uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-                uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-                uvs.Add(new Vector2(uvX, uvY));
-
-                break;
-            case Direction.PosZ:
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
-
-                triangles.Add(vertexStart);
-                triangles.Add(vertexStart + 1);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 3);
-                triangles.Add(vertexStart);
-
-                normals.Add(new Vector3(0, 0, 1));
-                normals.Add(new Vector3(0, 0, 1));
-                normals.Add(new Vector3(0, 0, 1));
-                normals.Add(new Vector3(0, 0, 1));
-
-                texId = blockData.texture.PosZ;
-                uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-                uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-                uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-                uvs.Add(new Vector2(uvX, uvY));
-
-                break;
-            case Direction.NegX:
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
-
-                triangles.Add(vertexStart);
-                triangles.Add(vertexStart + 1);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 3);
-                triangles.Add(vertexStart);
-
-                normals.Add(new Vector3(-1, 0, 0));
-                normals.Add(new Vector3(-1, 0, 0));
-                normals.Add(new Vector3(-1, 0, 0));
-                normals.Add(new Vector3(-1, 0, 0));
-
-                texId = blockData.texture.NegX;
-                uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-                uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-                uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-                uvs.Add(new Vector2(uvX, uvY));
-                break;
-            case Direction.NegY:
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
-
-                triangles.Add(vertexStart);
-                triangles.Add(vertexStart + 1);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 3);
-                triangles.Add(vertexStart);
-
-                normals.Add(new Vector3(0, -1, 0));
-                normals.Add(new Vector3(0, -1, 0));
-                normals.Add(new Vector3(0, -1, 0));
-                normals.Add(new Vector3(0, -1, 0));
-
-                texId = blockData.texture.NegY;
-                uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-                uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-                uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-                uvs.Add(new Vector2(uvX, uvY));
-                break;
-            case Direction.NegZ:
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
-                vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
-
-                triangles.Add(vertexStart);
-                triangles.Add(vertexStart + 1);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 2);
-                triangles.Add(vertexStart + 3);
-                triangles.Add(vertexStart);
-
-                normals.Add(new Vector3(0, 0, -1));
-                normals.Add(new Vector3(0, 0, -1));
-                normals.Add(new Vector3(0, 0, -1));
-                normals.Add(new Vector3(0, 0, -1));
-
-                texId = blockData.texture.NegZ;
-                uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-                uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-                uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-                uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-                uvs.Add(new Vector2(uvX, uvY));
-                break;
-        }
-    }
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void PosXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, BlockType block)
+    public static void PosXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + size.x + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + size.x + 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosX);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosX, new Vector2(size.y, size.x));
     }
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void NegXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, BlockType block)
+    public static void NegXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.x + 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.x + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegX);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegX, size);
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void PosYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, BlockType block)
+    public static void PosYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z + size.y + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosY);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosY, new Vector2(size.y, size.x));
     }
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void NegYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, BlockType block)
+    public static void NegYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegY);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegY, size);
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void PosZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, BlockType block)
+    public static void PosZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + size.y + 0.5f, blockPos.z + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.y + 0.5f, blockPos.z + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosZ);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosZ, size);
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void NegZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, BlockType block)
+    public static void NegZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.y + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + size.y + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegZ);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegZ, size);
     }
 
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void setUpTrisNormsUvs(int faceIndex, List<int> triangles, List<Vector3> normals, List<Vector2> uvs, int texId)
+    public static void setUpTrisNormsUvs(int faceIndex, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, int texId, Vector2 size)
     {
         int vertexStart = faceIndex * 4;
         triangles.Add(vertexStart);
@@ -475,12 +305,10 @@ public static class MeshGenerator
         normals.Add(new Vector3(1, 0, 0));
         normals.Add(new Vector3(1, 0, 0));
 
-        float uvY = textureOffset.y + paddingSize.y * (texId / texturesPerRow);
-        float uvX = textureOffset.x + paddingSize.x * (texId % texturesPerRow);
-        uvs.Add(new Vector2(uvX, uvY + textureSize.y));
-        uvs.Add(new Vector2(uvX + textureSize.x, uvY + textureSize.y));
-        uvs.Add(new Vector2(uvX + textureSize.x, uvY));
-        uvs.Add(new Vector2(uvX, uvY));
+        uvs.Add(new Vector3(0, size.y + 1, texId));
+        uvs.Add(new Vector3(size.x + 1, size.y + 1, texId));
+        uvs.Add(new Vector3(size.x + 1, 0, texId));
+        uvs.Add(new Vector3(0, 0, texId));
     }
 
     public static Chunk generateMesh(World world, Chunk chunk)
@@ -499,7 +327,7 @@ public static class MeshGenerator
         List<Vector3> vertices;
         List<int> triangles;
         List<Vector3> normals;
-        List<Vector2> uvs;
+        List<Vector3> uvs;
         List<BoxInt> boxColliders;
         BlockData[] dataStore = new BlockData[6];
         bool[,,] meshed = new bool[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE]; //default value is false
@@ -513,7 +341,7 @@ public static class MeshGenerator
             renderData.vertices = new List<Vector3>(initFaceCount * 4);
             renderData.triangles = new List<int>(initFaceCount * 6);
             renderData.normals = new List<Vector3>(initFaceCount * 4);
-            renderData.uvs = new List<Vector2>(initFaceCount * 4);
+            renderData.uvs = new List<Vector3>(initFaceCount * 4);
             renderData.boxColliders = new List<BoxInt>(initFaceCount / 25); //DIVING JUST CAUSE
         }
         else

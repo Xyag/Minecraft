@@ -51,7 +51,6 @@ public class World
                 {
                     if (x * x + y * y + z * z <= (csize + 1) * (csize + 1))
                         remeshQueue.Add(getChunk(chunkPos + new Vector3Int(x, y, z)));
-                    //MeshGenerator.remeshChunk(this, getChunk(chunkPos + new Vector3Int(x, y, z)));
                 }
             }
         }

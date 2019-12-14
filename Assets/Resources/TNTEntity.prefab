@@ -130,6 +130,6 @@ MonoBehaviour:
   startVelocity: {x: 0, y: 3, z: 0}
   timeToDetonate: 0
   explosionStrength: 0
-  baseColor: {r: 1, g: 0.09803922, b: 0.09803922, a: 1}
+  baseColor: {r: 1, g: 1, b: 1, a: 1}
   flashColor: {r: 1, g: 1, b: 0, a: 1}
   flashInterval: 0.5
