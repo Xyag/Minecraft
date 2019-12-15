@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[RequireComponent(typeof(MeshRenderer))]
+[RequireComponent(typeof(MeshRenderer), typeof(Light))]
 public class TNTEntity : Entity
 {
     public Vector3 startVelocity = Vector3.up;
@@ -15,11 +15,13 @@ public class TNTEntity : Entity
 
     private float flashTimer;
     private bool onBaseColor = true;
+    new private Light light;
     public override void Start()
     {
         base.Start();
         type = EntityType.tnt;
         rigidbody.AddForce(startVelocity, ForceMode.VelocityChange);
+        light = GetComponent<Light>();
         flashTimer = 0;
         renderer.material.color = baseColor;
     }
@@ -33,10 +35,12 @@ public class TNTEntity : Entity
             if (onBaseColor)
             {
                 renderer.material.color = baseColor;
+                light.color = baseColor;
             }
             else
             {
                 renderer.material.color = flashColor;
+                light.color = flashColor;
             }
         }
 

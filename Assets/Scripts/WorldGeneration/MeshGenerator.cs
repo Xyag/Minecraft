@@ -9,53 +9,35 @@ public static class MeshGenerator
 {
     public static GameObject emptyChunk;
     public static PhysicMaterial chunkPhysMaterial;
-    //private static Texture blockAtlas;
-    private static int texturesPerRow;
-    private static Vector2 textureSize;
-    private static Vector2 textureOffset;
-    private static Vector2 paddingSize;
+    public static ChunkBuffer finishedMeshes = new ChunkBuffer(100); //100 cause that's probably more than we need.
 
-    //public static void setBlockAtlas(Texture blockAtlas)
-    //{
-    //    //block textures are 16x16 each, with 1px on padding on each side. making the actual image 14x14
-    //    MeshGenerator.blockAtlas = blockAtlas;
-    //    texturesPerRow = blockAtlas.width / Block.TEXTURE_SIZE;
-    //    paddingSize = new Vector2((float)Block.TEXTURE_SIZE / (float)blockAtlas.width, (float)Block.TEXTURE_SIZE / (float)blockAtlas.height);
-    //    textureSize = new Vector2((float)(Block.TEXTURE_SIZE - 2) / (float)blockAtlas.width, (float)(Block.TEXTURE_SIZE - 2) / (float)blockAtlas.height);
-    //    textureOffset = new Vector2(1.0f / (float)blockAtlas.width, 1.0f / (float)blockAtlas.height);
-    //}
-    public static async Task spawnAll(IEnumerable<Chunk> collection, World world, int initSize = 1)
+    public static void spawnFromQueue(int max)
     {
-        List<Task<Chunk>> meshTasks = new List<Task<Chunk>>(initSize);
-        //start generating the meshes in parallel
-        foreach (var item in collection)
+        lock (finishedMeshes)
         {
-            meshTasks.Add(Task.Run<Chunk>(() => MeshGenerator.generateMesh(world, item)));
-        }
-        //spawn them as they come in
-        while (meshTasks.Count > 0)
-        {
-            var finishedTask = await Task.WhenAny(meshTasks);
-            spawnChunk(finishedTask.Result);
-            meshTasks.Remove(finishedTask);
+            int iterations = System.Math.Min(max, finishedMeshes.Count());
+            for (int i = 0; i < iterations; i++)
+            {
+                Chunk data = finishedMeshes.Dequeue();
+                spawnChunk(data);
+            }
         }
     }
-    public static async Task spawnAll(Chunk[,,] collection, World world, int initCount = 1) //multidimensional arrays implement GetIterator() but not GetIterator<T>(). weird
+    public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
-        List<Task<Chunk>> meshTasks = new List<Task<Chunk>>(initCount);
-        //start generating the meshes in parallel
         foreach (var item in collection)
         {
-            meshTasks.Add(Task.Run<Chunk>(() => MeshGenerator.generateMesh(world, item)));
-        }
-        //spawn them as they come in
-        while (meshTasks.Count > 0)
-        {
-            var finishedTask = await Task.WhenAny(meshTasks);
-            spawnChunk(finishedTask.Result);
-            meshTasks.Remove(finishedTask);
+            Task.Run(() => MeshGenerator.generateAndQueue(world, item));
         }
     }
+    public static void spawnAll(Chunk[,,] collection, World world) //multidimensional arrays implement GetIterator() but not GetIterator<T>(). weird
+    {
+        foreach (var item in collection)
+        {
+            Task.Run(() => MeshGenerator.generateAndQueue(world, item));
+        }
+    }
+
     public static async Task remeshAll(IEnumerable<Chunk> collection, World world, int initSize = 1)
     {
         List<Task<Chunk>> meshTasks = new List<Task<Chunk>>();
@@ -242,7 +224,7 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegX, size);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegX, new Vector2(size.y, size.x));
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -263,7 +245,7 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegY, size);
+        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegY, new Vector2(size.y, size.x));
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -311,6 +293,11 @@ public static class MeshGenerator
         uvs.Add(new Vector3(0, 0, texId));
     }
 
+    public static void generateAndQueue(World world, Chunk chunk)
+    {
+        generateMesh(world, chunk);
+        finishedMeshes.Enqueue(chunk);
+    }
     public static Chunk generateMesh(World world, Chunk chunk)
     {
         void set2dFalse(bool[,,] array)

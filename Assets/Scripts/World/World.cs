@@ -67,41 +67,49 @@ public class World
         MonoBehaviour.Destroy(explo, 5);
         await t;
     }
-    //not thread safe: writes to loadedChunks
+
     public void loadChunk(Chunk c)
     {
-        Chunk temp;
-        if (!loadedChunks.TryGetValue(c.chunkCoords, out temp))
-            loadedChunks.Add(c.chunkCoords, c);
-        else
-            for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-            {
-                for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+        lock (loadedChunks)
+        {
+            Chunk temp;
+            if (!loadedChunks.TryGetValue(c.chunkCoords, out temp))
+                loadedChunks.Add(c.chunkCoords, c);
+            else
+                for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
                 {
-                    for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                    for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                     {
-                        if (c.blocks[x, y, z].type != BlockType.empty)
+                        for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                         {
-                            temp.blocks[x, y, z] = c.blocks[x, y, z];
+                            if (c.blocks[x, y, z].type != BlockType.empty)
+                            {
+                                temp.blocks[x, y, z] = c.blocks[x, y, z];
+                            }
                         }
                     }
                 }
-            }
+        }
     }
     public void unloadChunk(Chunk chunk)
     {
-        if (chunk.gameObject != null)
-            MonoBehaviour.Destroy(chunk.gameObject);
-        loadedChunks.Remove(chunk.chunkCoords);
+        lock (loadedChunks)
+        {
+            if (chunk.gameObject != null)
+                MonoBehaviour.Destroy(chunk.gameObject);
+            loadedChunks.Remove(chunk.chunkCoords);
+        }
     }
     public void unloadChunk(Vector3Int coords)
     {
-        Chunk chunk = loadedChunks[coords];
-        if (chunk.gameObject != null)
-            MonoBehaviour.Destroy(chunk.gameObject);
-        loadedChunks.Remove(coords);
+        lock (loadedChunks)
+        {
+            Chunk chunk = loadedChunks[coords];
+            if (chunk.gameObject != null)
+                MonoBehaviour.Destroy(chunk.gameObject);
+            loadedChunks.Remove(coords);
+        }
     }
-    //thread safe: you must call loadChunk() afterwards
     public Chunk getChunk(Vector3Int coords)
     {
         Chunk chunk;
@@ -114,6 +122,10 @@ public class World
             chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
             return chunk;
         }
+    }
+    public Vector3Int WorldToChunkCoords(Vector3 worldCoords)
+    {
+        return WorldToChunkCoords(new Vector3Int((int)worldCoords.x, (int)worldCoords.y, (int)worldCoords.z));
     }
     public Vector3Int WorldToChunkCoords(Vector3Int worldCoords)
     {

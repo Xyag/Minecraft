@@ -7,7 +7,6 @@ using System;
 public static class WorldGenerator
 {
     public static int seed = 42000;
-    public static bool currentlyLoading = false;
     static List<IGenerationLayer> generationLayers = new List<IGenerationLayer>();
     static NoiseGroup caveNoiseGenerator;
     static NoiseGroup ironNoise;
@@ -73,7 +72,6 @@ public static class WorldGenerator
     }
     public static async Task generateRegion(World world, Vector3Int startChunk, int xSize, int ySize, int zSize)
     {
-        currentlyLoading = true;
         //generates the block data asynchronosly using multiThreadPasses, then synchronously using singleThreadPasses, then loads the chunks synchronously, then generates the meshes asyncronously.
         List<Task<Chunk>> genTasks = new List<Task<Chunk>>(xSize * ySize * zSize);
         Chunk[,,] chunks = new Chunk[xSize, ySize, zSize];
@@ -125,7 +123,7 @@ public static class WorldGenerator
         //we send all the finished chunks to the world to be loaded
         for (int x = 0; x < xSize; x++)
         {
-            for (int y = 0; y < ySize; y++)
+            for (int y = ySize - 1; y >= 0; y--) //we want to load the top layer first usually so stuff doesn't fall through the ground.
             {
                 for (int z = 0; z < zSize; z++)
                 {
@@ -133,12 +131,10 @@ public static class WorldGenerator
                 }
             }
         }
-        currentlyLoading = false;
     }
     public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
     {
-        currentlyLoading = true;
-        float timestamp = Time.realtimeSinceStartup;
+        Debug.Log("start generation");
         List<Task<(int, Chunk)>> genTasks = new List<Task<(int, Chunk)>>(dests.Count);
         List<Chunk> chunks = new List<Chunk>(dests.Count);
         for (int i = 0; i < dests.Count; i++)
@@ -175,19 +171,11 @@ public static class WorldGenerator
                 }
             }
         }
+        Debug.Log("done generation");
         foreach (var chunk in chunks)
         {
             world.loadChunk(chunk);
         }
-        currentlyLoading = false;
         return chunks;
-    }
-    public static async Task generateAndMeshList(World world, List<Vector3Int> dests)
-    {
-        currentlyLoading = true;
-        var chunks = await generateList(world, dests);
-
-        await MeshGenerator.spawnAll(chunks, world, chunks.Count);
-        currentlyLoading = false;
     }
 }

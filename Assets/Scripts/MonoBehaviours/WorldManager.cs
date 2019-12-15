@@ -11,7 +11,7 @@ public class WorldManager : MonoBehaviour
     public GameObject ExplosionParticles;
     public Entity Player;
     public GameObject[] spawnableEntities;
-
+    public int MaxChunkUpdatesPerFrame = 3;
     private TextureLoader textureLoader;
 
     public void Awake()
@@ -52,12 +52,14 @@ public class WorldManager : MonoBehaviour
         float newTime = Time.realtimeSinceStartup;
         Debug.Log("generated " + (1000 * (newTime - currTime)));
         currTime = Time.realtimeSinceStartup;
-        //
-        await MeshGenerator.spawnAll(world.loadedChunks.Values, world, world.loadedChunks.Count);
-        newTime = Time.realtimeSinceStartup;
-        Debug.Log("spawned " + (1000 * (newTime - currTime)));
-    }
 
+        MeshGenerator.spawnAll(world.loadedChunks.Values, world);
+        newTime = Time.realtimeSinceStartup;
+    }
+    public void Update()
+    {
+        MeshGenerator.spawnFromQueue(MaxChunkUpdatesPerFrame);
+    }
     async Task slowGen(World world, int startZ)
     {
         System.Threading.Thread.Sleep(2);

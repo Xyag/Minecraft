@@ -9,43 +9,44 @@ public class WorldLoader : MonoBehaviour
     [HideInInspector]
     public Entity player;
     public World world;
-    public float CheckInterval = 1;
     public int LoadDist = 5;
+    public int UnloadDist = 7;
     private List<Vector3Int> chunkBuffer;
-    private bool checking;
+    private Vector3Int oldPlayerCoords;
     private void Start()
     {
-        chunkBuffer = new List<Vector3Int>();
-        checking = false;
-        StartCoroutine(chunkLoadingRoutine());
+        chunkBuffer = new List<Vector3Int>(13 * UnloadDist * UnloadDist); //should be bigger than needed: this is more than the surface area of the sphere
+        oldPlayerCoords = world.WorldToChunkCoords(player.transform.position);
     }
 
-    IEnumerator chunkLoadingRoutine()
+    public void Update()
     {
-        while (true)
+        Vector3Int playerChunkCoords = world.WorldToChunkCoords(player.transform.position);
+        if (playerChunkCoords != oldPlayerCoords)
         {
-            yield return new WaitForSecondsRealtime(CheckInterval);
-            if (!checking)
-                checkChunkLoading();
+            checkChunkLoading();
         }
+        oldPlayerCoords = playerChunkCoords;
     }
-    private async Task checkChunkLoading()
+
+    private void checkChunkLoading()
     {
-        checking = true;
+        Debug.Log("checking chunks...");
         Vector3Int playerChunkCoords = world.WorldToChunkCoords(new Vector3Int((int)player.transform.position.x, (int)player.transform.position.y, (int)player.transform.position.z));
-        //chunkBuffer.Clear();
-        //foreach (var chunk in world.loadedChunks.Values)
-        //{
-        //    if ((chunk.chunkCoords - playerChunkCoords).sqrMagnitude >= LoadDist * LoadDist)
-        //    {
-        //        //too far away
-        //        chunkBuffer.Add(chunk.chunkCoords);
-        //    }
-        //}
-        //foreach (var chunk in chunkBuffer)
-        //{
-        //    world.unloadChunk(chunk);
-        //}
+        chunkBuffer.Clear();
+        foreach (var chunk in world.loadedChunks.Values)
+        {
+            if ((chunk.chunkCoords - playerChunkCoords).sqrMagnitude >= UnloadDist * UnloadDist)
+            {
+                //too far away
+                chunkBuffer.Add(chunk.chunkCoords);
+            }
+        }
+        Debug.Log("unloading " + chunkBuffer.Count + " chunks...");
+        foreach (var chunk in chunkBuffer)
+        {
+            world.unloadChunk(chunk);
+        }
         chunkBuffer.Clear();
         for (int x = -LoadDist; x <= LoadDist; x++)
         {
@@ -54,19 +55,22 @@ public class WorldLoader : MonoBehaviour
                 for (int z = -LoadDist; z <= LoadDist; z++)
                 {
                     Vector3Int coords = playerChunkCoords + new Vector3Int(x, y, z);
-                    //int sqrDist = new Vector3Int(x, y, z).sqrMagnitude;
-                    if (!world.loadedChunks.ContainsKey(coords))
+                    int sqrDist = x * x + y * y + z * z;
+                    if (sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
                     {
                         chunkBuffer.Add(coords);
                     }
                 }
             }
         }
-        if (chunkBuffer.Count > 0)
-        {
-            Debug.Log(chunkBuffer.Count);
-            await WorldGenerator.generateAndMeshList(world, chunkBuffer);
-        }
-        checking = false;
+        Debug.Log("loading " + chunkBuffer.Count + " chunks...");
+        Task.Run(() => generateAll(chunkBuffer));
+    }
+
+    private async void generateAll(List<Vector3Int> pos)
+    {
+        List<Chunk> chunks = await WorldGenerator.generateList(world, pos);
+        Debug.Log("finished generating " + chunks.Count + " chunks");
+        MeshGenerator.spawnAll(chunks, world);
     }
 }
