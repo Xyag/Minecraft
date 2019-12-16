@@ -11,7 +11,8 @@ public class WorldManager : MonoBehaviour
     public GameObject ExplosionParticles;
     public Entity Player;
     public GameObject[] spawnableEntities;
-    public int MaxChunkUpdatesPerFrame = 3;
+    public int MaxChunkLoadsPerFrame = 3;
+    public int MaxChunkUnloadsPerFrame = 10;
     private TextureLoader textureLoader;
 
     public void Awake()
@@ -58,7 +59,8 @@ public class WorldManager : MonoBehaviour
     }
     public void Update()
     {
-        MeshGenerator.spawnFromQueue(MaxChunkUpdatesPerFrame);
+        MeshGenerator.spawnFromQueue(MaxChunkLoadsPerFrame);
+        world.unloadFromQueue(MaxChunkUnloadsPerFrame);
     }
     async Task slowGen(World world, int startZ)
     {

@@ -214,7 +214,12 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosX, new Vector2(size.y, size.x));
+        normals.Add(new Vector3(1, 0, 0));
+        normals.Add(new Vector3(1, 0, 0));
+        normals.Add(new Vector3(1, 0, 0));
+        normals.Add(new Vector3(1, 0, 0));
+
+        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosX, new Vector2(size.y, size.x));
     }
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
     public static void NegXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -224,7 +229,12 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegX, new Vector2(size.y, size.x));
+        normals.Add(new Vector3(-1, 0, 0));
+        normals.Add(new Vector3(-1, 0, 0));
+        normals.Add(new Vector3(-1, 0, 0));
+        normals.Add(new Vector3(-1, 0, 0));
+
+        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegX, new Vector2(size.y, size.x));
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -235,7 +245,12 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + 0.5f, blockPos.z + size.y + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosY, new Vector2(size.y, size.x));
+        normals.Add(new Vector3(0, 1, 0));
+        normals.Add(new Vector3(0, 1, 0));
+        normals.Add(new Vector3(0, 1, 0));
+        normals.Add(new Vector3(0, 1, 0));
+
+        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosY, new Vector2(size.y, size.x));
     }
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
     public static void NegYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -245,7 +260,12 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegY, new Vector2(size.y, size.x));
+        normals.Add(new Vector3(0, -1, 0));
+        normals.Add(new Vector3(0, -1, 0));
+        normals.Add(new Vector3(0, -1, 0));
+        normals.Add(new Vector3(0, -1, 0));
+
+        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegY, new Vector2(size.y, size.x));
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -256,7 +276,12 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z + 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.PosZ, size);
+        normals.Add(new Vector3(0, 0, 1));
+        normals.Add(new Vector3(0, 0, 1));
+        normals.Add(new Vector3(0, 0, 1));
+        normals.Add(new Vector3(0, 0, 1));
+
+        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosZ, size);
     }
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -267,12 +292,17 @@ public static class MeshGenerator
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
 
-        setUpTrisNormsUvs(faceIndex, triangles, normals, uvs, Block.blockTypes[(int)block].texture.NegZ, size);
+        normals.Add(new Vector3(0, 0, -1));
+        normals.Add(new Vector3(0, 0, -1));
+        normals.Add(new Vector3(0, 0, -1));
+        normals.Add(new Vector3(0, 0, -1));
+
+        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegZ, size);
     }
 
 
     [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void setUpTrisNormsUvs(int faceIndex, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, int texId, Vector2 size)
+    public static void setUpTrisNorms(int faceIndex, List<int> triangles, List<Vector3> uvs, int texId, Vector2 size)
     {
         int vertexStart = faceIndex * 4;
         triangles.Add(vertexStart);
@@ -282,10 +312,7 @@ public static class MeshGenerator
         triangles.Add(vertexStart + 3);
         triangles.Add(vertexStart);
 
-        normals.Add(new Vector3(1, 0, 0));
-        normals.Add(new Vector3(1, 0, 0));
-        normals.Add(new Vector3(1, 0, 0));
-        normals.Add(new Vector3(1, 0, 0));
+
 
         uvs.Add(new Vector3(0, size.y + 1, texId));
         uvs.Add(new Vector3(size.x + 1, size.y + 1, texId));

@@ -509,6 +509,7 @@ MonoBehaviour:
   Player: {fileID: 1345584382}
   spawnableEntities:
   - {fileID: 2170946847389907774, guid: 682a3e4a2c9631043b8fba574d9e6572, type: 3}
+  MaxChunkUpdatesPerFrame: 2
 --- !u!4 &856809224
 Transform:
   m_ObjectHideFlags: 0

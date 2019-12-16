@@ -134,7 +134,6 @@ public static class WorldGenerator
     }
     public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
     {
-        Debug.Log("start generation");
         List<Task<(int, Chunk)>> genTasks = new List<Task<(int, Chunk)>>(dests.Count);
         List<Chunk> chunks = new List<Chunk>(dests.Count);
         for (int i = 0; i < dests.Count; i++)
@@ -171,7 +170,6 @@ public static class WorldGenerator
                 }
             }
         }
-        Debug.Log("done generation");
         foreach (var chunk in chunks)
         {
             world.loadChunk(chunk);

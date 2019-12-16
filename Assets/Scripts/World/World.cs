@@ -5,6 +5,7 @@ using System;
 
 public class World
 {
+    public ChunkBuffer unloadChunkBuffer = new ChunkBuffer(1000);
     public Dictionary<Vector3Int, Chunk> loadedChunks = new Dictionary<Vector3Int, Chunk>();
     public Dictionary<EntityType, GameObject> entityTypes = new Dictionary<EntityType, GameObject>();
     public List<Entity> loadedEntities = new List<Entity>();
@@ -67,7 +68,18 @@ public class World
         MonoBehaviour.Destroy(explo, 5);
         await t;
     }
-
+    public void unloadFromQueue(int max)
+    {
+        lock (unloadChunkBuffer)
+        {
+            int iterations = System.Math.Min(max, unloadChunkBuffer.Count());
+            for (int i = 0; i < iterations; i++)
+            {
+                Chunk data = unloadChunkBuffer.Dequeue();
+                unloadChunk(data);
+            }
+        }
+    }
     public void loadChunk(Chunk c)
     {
         lock (loadedChunks)
