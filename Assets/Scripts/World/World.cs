@@ -56,13 +56,13 @@ public class World
             }
         }
         Task t = MeshGenerator.remeshAll(remeshQueue, this, remeshQueue.Count);
-        foreach (var en in loadedEntities)
-        {
-            if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
-            {
-                en.rigidbody.AddForce((en.transform.position - (Vector3)origin).normalized * explosionStrength, ForceMode.VelocityChange);
-            }
-        }
+        //foreach (var en in loadedEntities)
+        //{
+        //    if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
+        //    {
+        //        en.rigidbody.AddForce((en.transform.position - (Vector3)origin).normalized * explosionStrength, ForceMode.VelocityChange);
+        //    }
+        //}
         var explo = MonoBehaviour.Instantiate(explosionParticles);
         explo.transform.position = origin;
         MonoBehaviour.Destroy(explo, 5);
@@ -245,6 +245,12 @@ public class World
         {
             //Debug.Log("world coords: " + worldCoords + ", chunk: " + chunkCoords + ", block: " + blockCoords);
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
+        }
+        else
+        {
+            chunk = new Chunk(new Block[Chunk.CHUNK_SIZE,Chunk.CHUNK_SIZE,Chunk.CHUNK_SIZE], chunkCoords);
+            loadChunk(chunk);
+            chunk.blocks[blockCoords.x,blockCoords.y,blockCoords.z].type = block;
         }
         MeshGenerator.remeshChunk(this, chunk, false);
 

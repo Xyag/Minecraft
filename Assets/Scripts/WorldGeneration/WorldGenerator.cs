@@ -64,11 +64,20 @@ public static class WorldGenerator
             minHeight = 5,
             maxHeight = 12
         };
+        var mountainsGenerator = new HeightmapGenerationLayer
+        {
+            heightNoise = new NoiseGroup(3, 0.0002f, 15.0f, 1024, 0.25f, seed - 1230),
+            heightOffset = 16,
+            topBlock = BlockType.snow,
+            midBlock= BlockType.stone,
+            underGroundBlock = BlockType.stone,
+            midDepth = 1,
+        };
 
-        generationLayers.Add(desertGenerator);
+        generationLayers.Add(mountainsGenerator);
         //generationLayers.Add(plainsTrees);
-        generationLayers.Add(ironGenerator);
-        generationLayers.Add(caveGenerator);
+        //generationLayers.Add(ironGenerator);
+        //generationLayers.Add(caveGenerator);
     }
     public static async Task generateRegion(World world, Vector3Int startChunk, int xSize, int ySize, int zSize)
     {
