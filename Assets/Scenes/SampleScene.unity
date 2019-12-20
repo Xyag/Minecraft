@@ -736,7 +736,7 @@ MonoBehaviour:
   Player: {fileID: 1345584382}
   spawnableEntities:
   - {fileID: 2170946847389907774, guid: 682a3e4a2c9631043b8fba574d9e6572, type: 3}
-  MaxChunkLoadsPerFrame: 3
+  MaxChunkLoadsPerFrame: 10
   MaxChunkUnloadsPerFrame: 10
 --- !u!4 &856809224
 Transform:
@@ -765,8 +765,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
-  LoadDist: 7
-  UnloadDist: 9
+  LoadDist: 10
+  UnloadDist: 12
 --- !u!1 &863493401
 GameObject:
   m_ObjectHideFlags: 0
@@ -1572,6 +1572,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Constraints
       value: 112
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334286, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: m_UseGravity
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334284, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}

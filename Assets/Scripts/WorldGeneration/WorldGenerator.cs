@@ -66,14 +66,14 @@ public static class WorldGenerator
         };
         var mountainsGenerator = new HeightmapGenerationLayer
         {
-            heightNoise = new NoiseGroup(3, 0.0002f, 15.0f, 1024, 0.25f, seed - 1230),
+            heightNoise = new NoiseGroup(3, 0.0002f, 5.0f, 1024, 0.25f, seed - 1230),
             heightOffset = 16,
             topBlock = BlockType.snow,
             midBlock= BlockType.stone,
             underGroundBlock = BlockType.stone,
             midDepth = 1,
         };
-
+        
         generationLayers.Add(mountainsGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);

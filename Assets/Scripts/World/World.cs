@@ -11,6 +11,8 @@ public class World
     public List<Entity> loadedEntities = new List<Entity>();
     public GameObject explosionParticles;
 
+    private System.Diagnostics.Stopwatch unloadStopwatch = new System.Diagnostics.Stopwatch();
+
     public GameObject spawnEntity(EntityType type, Vector3 position)
     {
         var go = MonoBehaviour.Instantiate(entityTypes[type]);
@@ -56,27 +58,31 @@ public class World
             }
         }
         Task t = MeshGenerator.remeshAll(remeshQueue, this, remeshQueue.Count);
-        //foreach (var en in loadedEntities)
-        //{
-        //    if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
-        //    {
-        //        en.rigidbody.AddForce((en.transform.position - (Vector3)origin).normalized * explosionStrength, ForceMode.VelocityChange);
-        //    }
-        //}
+        foreach (var en in loadedEntities)
+        {
+            if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
+            {
+                en.rigidbody.AddForce((en.transform.position - (Vector3)origin).normalized * explosionStrength, ForceMode.VelocityChange);
+            }
+        }
         var explo = MonoBehaviour.Instantiate(explosionParticles);
         explo.transform.position = origin;
         MonoBehaviour.Destroy(explo, 5);
         await t;
     }
-    public void unloadFromQueue(int max)
+    public void unloadFromQueue(long maxTimeMS, int minUnloads)
     {
         lock (unloadChunkBuffer)
         {
-            int iterations = System.Math.Min(max, unloadChunkBuffer.Count());
-            for (int i = 0; i < iterations; i++)
+            unloadStopwatch.Restart();
+            int chunksRemaining = unloadChunkBuffer.Count();
+            int unloads = 0;
+            while (chunksRemaining > 0 && (unloads < minUnloads || unloadStopwatch.ElapsedMilliseconds < maxTimeMS))
             {
                 Chunk data = unloadChunkBuffer.Dequeue();
                 unloadChunk(data);
+                chunksRemaining--;
+                unloads++;
             }
         }
     }

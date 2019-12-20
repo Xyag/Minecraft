@@ -36,7 +36,8 @@ public class WorldLoader : MonoBehaviour
         }
         oldPlayerCoords = playerChunkCoords;
     }
-
+    //how do we avoid putting a chunk in the unload buffer if it's already there? is the best solution really to use a contains on every fucking chunk?
+    //but yeah we need to fix this
     private void checkChunkLoading(object playerChunkCoordsObj)
     {
         Vector3Int playerChunkCoords = (Vector3Int)playerChunkCoordsObj;

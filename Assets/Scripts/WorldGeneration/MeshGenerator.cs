@@ -4,22 +4,28 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 public static class MeshGenerator
 {
     public static GameObject emptyChunk;
     public static PhysicMaterial chunkPhysMaterial;
     public static ChunkBuffer finishedMeshes = new ChunkBuffer(100); //100 cause that's probably more than we need.
+    private static Stopwatch stopwatch = new Stopwatch();
 
-    public static void spawnFromQueue(int max)
+    public static void spawnFromQueue(long maxTimeMS, int minSpawns)
     {
-        lock (finishedMeshes)
+        lock(finishedMeshes)
         {
-            int iterations = System.Math.Min(max, finishedMeshes.Count());
-            for (int i = 0; i < iterations; i++)
+            stopwatch.Restart();
+            int chunksRemaining = finishedMeshes.Count();
+            int spawns = 0;
+            while (chunksRemaining > 0 && (spawns < minSpawns || stopwatch.ElapsedMilliseconds < maxTimeMS))
             {
                 Chunk data = finishedMeshes.Dequeue();
                 spawnChunk(data);
+                chunksRemaining--;
+                spawns++;
             }
         }
     }
@@ -52,6 +58,14 @@ public static class MeshGenerator
             meshTasks.Remove(finishedTask);
         }
     }
+    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+    private static void setBoxValues(BoxCollider box, BoxInt info)
+    {
+        box.material = chunkPhysMaterial;
+        box.center = new Vector3((float)info.x + (float)info.dx * 0.5f,
+              (float)info.y + (float)info.dy * 0.5f, (float)info.z + (float)info.dz * 0.5f);
+        box.size = new Vector3(info.dx+1, info.dy+1, info.dz+1);
+    }
     public static void spawnChunk(Chunk chunk)
     {
         var data = chunk.renderData;
@@ -73,10 +87,7 @@ public static class MeshGenerator
         for (int i = 0; i < data.boxColliders.Count; i++)
         {
             BoxCollider box = chunkObject.AddComponent<BoxCollider>();
-            box.material = chunkPhysMaterial;
-            box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-            box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+            setBoxValues(box, data.boxColliders[i]);
         }
     }
     public static void replaceChunkMesh(Chunk chunk, MeshData data, World world)
@@ -100,10 +111,7 @@ public static class MeshGenerator
                 {
                     var box = colliders[i];
                     box.enabled = true;
-                    box.material = chunkPhysMaterial;
-                    box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-                        (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-                    box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                    setBoxValues(box, data.boxColliders[i]);
                 }
                 for (int i = data.boxColliders.Count; i < space; i++)
                 {
@@ -116,19 +124,12 @@ public static class MeshGenerator
                 {
                     var box = colliders[i];
                     box.enabled = true;
-                    box.material = chunkPhysMaterial;
-                    box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-                        (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-                    box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz); ;
+                    setBoxValues(box, data.boxColliders[i]);
                 }
                 for (int i = space; i < data.boxColliders.Count; i++)
                 {
                     var box = chunk.gameObject.AddComponent<BoxCollider>();
-                    box.enabled = true;
-                    box.material = chunkPhysMaterial;
-                    box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-                        (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-                    box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                    setBoxValues(box, data.boxColliders[i]);
                 }
             }
         }
@@ -159,10 +160,7 @@ public static class MeshGenerator
                     {
                         var box = colliders[i];
                         box.enabled = true;
-                        box.material = chunkPhysMaterial;
-                        box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-                        box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                        setBoxValues(box, data.boxColliders[i]);
                     }
                     for (int i = data.boxColliders.Count; i < space; i++)
                     {
@@ -175,19 +173,13 @@ public static class MeshGenerator
                     {
                         var box = colliders[i];
                         box.enabled = true;
-                        box.material = chunkPhysMaterial;
-                        box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-                        box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz); ;
+                        setBoxValues(box, data.boxColliders[i]);
                     }
                     for (int i = space; i < data.boxColliders.Count; i++)
                     {
                         var box = chunk.gameObject.AddComponent<BoxCollider>();
                         box.enabled = true;
-                        box.material = chunkPhysMaterial;
-                        box.center = new Vector3((float)data.boxColliders[i].x - 0.5f + (float)data.boxColliders[i].dx * 0.5f,
-              (float)data.boxColliders[i].y - 0.5f + (float)data.boxColliders[i].dy * 0.5f, (float)data.boxColliders[i].z - 0.5f + (float)data.boxColliders[i].dz * 0.5f);
-                        box.size = new Vector3(data.boxColliders[i].dx, data.boxColliders[i].dy, data.boxColliders[i].dz);
+                        setBoxValues(box, data.boxColliders[i]);
                     }
                 }
             }
@@ -202,7 +194,7 @@ public static class MeshGenerator
         }
         else
         {
-            Debug.LogError("null chunk");
+            UnityEngine.Debug.LogError("null chunk");
         }
 
     }
@@ -718,70 +710,9 @@ public static class MeshGenerator
             set2dFalse(meshed);
         }
 
-        //now we do collision
-        //going y->x->z cause i think we will have bigger rectangles in the xz plane
-        //TODO: fix this shit im bored of working on it for now
-        /*for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
-        {
-            for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-            {
-                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-                {
-                    bool collides = Block.blockTypes[(int)chunk.blocks[x, y, z].type].fullCollision;
-                    if (!collides) { meshed[x, y, z] = true; continue; }
-                    if (meshed[x, y, z]) { continue; }
-
-                    //z is first direction here
-                    int zExtent = 1;
-                    while (z + zExtent < Chunk.CHUNK_SIZE && Block.blockTypes[(int)chunk.blocks[x, y, z + zExtent].type].fullCollision)
-                    {
-                        meshed[x, y, z + zExtent] = true;
-                        zExtent++;
-                    }
-                    zExtent--; //always overcount
-                    //next is x
-                    int xExtent = 1;
-                    while (x + xExtent < Chunk.CHUNK_SIZE)
-                    {
-                        for (int tz = z; tz <= z + zExtent; tz++)
-                        {
-                            if (meshed[x + xExtent, y, tz] || !Block.blockTypes[(int)chunk.blocks[x + xExtent, y, tz].type].fullCollision)
-                                goto endXLoop;
-                        }
-                        for (int tz = z; tz <= z + zExtent; tz++)
-                        {
-                            meshed[x + xExtent, y, tz] = true;
-                        }
-                        xExtent++;
-                    }
-                endXLoop:
-                    int yExtent = 1;
-                    while (y + yExtent < Chunk.CHUNK_SIZE)
-                    {
-                        for (int tx = x; tx < x + xExtent; tx++)
-                        {
-                            for (int tz = z; tz <= z + zExtent; tz++)
-                            {
-                                if (meshed[tx, y + yExtent, tz] || !Block.blockTypes[(int)chunk.blocks[tx, y + yExtent, tz].type].fullCollision)
-                                    goto endYLoop;
-                            }
-                        }
-                        for (int tx = x; tx < x + xExtent; tx++)
-                        {
-                            for (int tz = z; tz <= z + zExtent; tz++)
-                            {
-                                meshed[tx, y + yExtent, tz] = true;
-                            }
-                        }
-                        yExtent++;
-                    }
-                endYLoop:
-                    boxColliders.Add(new BoxInt(x, y, z, xExtent + 1, yExtent + 1, zExtent + 1));
-                }
-            }
-        }*/
+        
         //-------------OLD COLLISION ALGORITHM-----------
-        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+        /*for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
         {
             for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
             {
@@ -796,10 +727,71 @@ public static class MeshGenerator
                             boxColliders.Add(new BoxInt(x, y, z, 1, 1, 1));
                         }
                     }
+        
+                }
+            }
+        }*/
+        //now we do collision
+        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+        {
+            for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+            {
+                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                {
+                    if (meshed[x,y,z]) continue;
 
+                    bool collision = Block.blockTypes[(int)chunk.blocks[x, y, z].type].fullCollision;
+                    meshed[x,y,z] = true;
+
+                    if(!collision) continue;
+
+                    int zExtent = 1;
+                    while (z+zExtent < Chunk.CHUNK_SIZE && !meshed[x,y,z+zExtent] && Block.blockTypes[(int)chunk.blocks[x, y, z+zExtent].type].fullCollision)
+                    {
+                        meshed[x,y,z+zExtent] = true;
+                        zExtent++;
+                    }
+
+                    int yExtent = 1;
+                    while (y+yExtent < Chunk.CHUNK_SIZE)
+                    {
+                        for (int tz = z; tz < z+zExtent; tz++)
+                        {
+                            if (meshed[x,y+yExtent,tz] || !Block.blockTypes[(int)chunk.blocks[x, y+yExtent, tz].type].fullCollision) goto endYLoop;
+                        }
+                        for (int tz = z; tz < z+zExtent; tz++)
+                        {
+                            meshed[x,y+yExtent,tz] = true;
+                        }
+                        yExtent++;
+                    }
+                    endYLoop:
+
+                    int xExtent = 1;
+                    while (x+xExtent < Chunk.CHUNK_SIZE)
+                    {
+                        for (int ty = y; ty < y+yExtent; ty++)
+                        {
+                            for (int tz = z; tz < z+zExtent; tz++)
+                            {
+                                if (meshed[x+xExtent,ty,tz] || !Block.blockTypes[(int)chunk.blocks[x+xExtent, ty, tz].type].fullCollision) goto endXLoop;
+                            }
+                        }
+                        for (int ty = y; ty < y+yExtent; ty++)
+                        {
+                            for (int tz = z; tz < z+zExtent; tz++)
+                            {
+                                meshed[x+xExtent,ty,tz] = true;
+                            }
+                        }
+                        xExtent++;
+                    }
+                    endXLoop:
+                    boxColliders.Add(new BoxInt(x,y,z,xExtent-1,yExtent-1,zExtent-1));
                 }
             }
         }
+
         renderData.faceCount = faceIndex;
         MeshData meshData = new MeshData
         {

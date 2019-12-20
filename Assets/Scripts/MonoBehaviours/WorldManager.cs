@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections;
+using System.Diagnostics;
 
 [RequireComponent(typeof(TextureLoader))]
 public class WorldManager : MonoBehaviour
@@ -11,13 +12,19 @@ public class WorldManager : MonoBehaviour
     public GameObject ExplosionParticles;
     public Entity Player;
     public GameObject[] spawnableEntities;
-    public int MaxChunkLoadsPerFrame = 3;
-    public int MaxChunkUnloadsPerFrame = 10;
+    public int MinChunkLoadsPerFrame = 5;
+    public int MinChunkUnloadsPerFrame = 5;
+
     private TextureLoader textureLoader;
+    private long targetFrameTimeMS;
+    private Stopwatch frameTimer;
 
     public void Awake()
     {
         Application.targetFrameRate = 60;
+        targetFrameTimeMS = (long)(1000.0f/(float)Application.targetFrameRate);
+        frameTimer = new Stopwatch();
+
         textureLoader = GetComponent<TextureLoader>();
 
         MeshGenerator.emptyChunk = EmptyChunkPrefab;
@@ -51,7 +58,7 @@ public class WorldManager : MonoBehaviour
 
         await WorldGenerator.generateRegion(world, new Vector3Int(-worldWidth / 2, -worldHeight / 2, -worldWidth / 2), worldWidth, worldHeight, worldWidth);
         float newTime = Time.realtimeSinceStartup;
-        Debug.Log("generated " + (1000 * (newTime - currTime)));
+        UnityEngine.Debug.Log("generated " + (1000 * (newTime - currTime)));
         currTime = Time.realtimeSinceStartup;
 
         MeshGenerator.spawnAll(world.loadedChunks.Values, world);
@@ -59,8 +66,15 @@ public class WorldManager : MonoBehaviour
     }
     public void Update()
     {
-        MeshGenerator.spawnFromQueue(MaxChunkLoadsPerFrame);
-        world.unloadFromQueue(MaxChunkUnloadsPerFrame);
+        frameTimer.Restart();
+    }
+    public void LateUpdate()
+    {
+        //we do about half the remaining frame time on loads and half on unloads
+        long currTime = frameTimer.ElapsedMilliseconds;
+        MeshGenerator.spawnFromQueue((targetFrameTimeMS-currTime)/2,MinChunkLoadsPerFrame);
+        currTime = frameTimer.ElapsedMilliseconds;
+        world.unloadFromQueue(targetFrameTimeMS-currTime,MinChunkUnloadsPerFrame);
     }
     async Task slowGen(World world, int startZ)
     {
