@@ -15,7 +15,7 @@ public class World
 
     public GameObject spawnEntity(EntityType type, Vector3 position)
     {
-        var go = MonoBehaviour.Instantiate(entityTypes[type]);
+        var go = UnityEngine.Object.Instantiate(entityTypes[type]);
         go.transform.position = position;
         Entity e = go.GetComponent<Entity>();
         e.world = this;
@@ -53,7 +53,9 @@ public class World
                 for (int z = -csize; z <= csize; z++)
                 {
                     if (x * x + y * y + z * z <= (csize + 1) * (csize + 1))
+                    {
                         remeshQueue.Add(getChunk(chunkPos + new Vector3Int(x, y, z)));
+                    }
                 }
             }
         }
@@ -137,7 +139,7 @@ public class World
         }
         else
         {
-            chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
+            chunk = new Chunk(null, coords);
             return chunk;
         }
     }
@@ -216,14 +218,14 @@ public class World
         Chunk chunk;
         if (loadedChunks.TryGetValue(chunkCoords, out chunk))
         {
-            //Debug.Log("world coords: " + worldCoords + ", chunk: " + chunkCoords + ", block: " + blockCoords);
+            if (chunk.blocks == null)
+                chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
         }
         else if (forceLoadChunk)
         {
             chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], chunkCoords);
             loadChunk(chunk);
-            //Debug.Log("FL world coords: " + worldCoords + ", chunk: " + chunkCoords + ", block: " + blockCoords);
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
         }
     }
@@ -249,7 +251,8 @@ public class World
         Chunk chunk;
         if (loadedChunks.TryGetValue(chunkCoords, out chunk))
         {
-            //Debug.Log("world coords: " + worldCoords + ", chunk: " + chunkCoords + ", block: " + blockCoords);
+            if (chunk.blocks == null)
+                chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
         }
         else
@@ -312,6 +315,8 @@ public class World
         Chunk chunk;
         if (loadedChunks.TryGetValue(chunkCoords, out chunk))
         {
+            if (chunk.blocks == null)
+                return Block.blockTypes[(int)BlockType.empty];
             return Block.blockTypes[(int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type];
         }
         else
@@ -325,8 +330,10 @@ public class World
         Chunk chunk;
         if (loadedChunks.TryGetValue(chunkCoords, out chunk))
         {
-            if (chunk == null || chunk.blocks == null)
+            if (chunk == null)
                 return Block.blockTypes[(int)BlockType.chunk_border];
+            if (chunk.blocks == null)
+                return Block.blockTypes[(int)BlockType.empty];
             return Block.blockTypes[(int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type];
         }
         else

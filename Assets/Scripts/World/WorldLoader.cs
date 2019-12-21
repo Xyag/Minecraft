@@ -12,6 +12,7 @@ public class WorldLoader : MonoBehaviour
     public World world;
     public int LoadDist = 5;
     public int UnloadDist = 7;
+    public int toLoad;
     private List<Vector3Int> loadBuffer;
     private List<Chunk> unloadBuffer;
     private Vector3Int oldPlayerCoords;
@@ -21,6 +22,9 @@ public class WorldLoader : MonoBehaviour
         loadBuffer = new List<Vector3Int>(13 * LoadDist * LoadDist); //should be bigger than needed: this is more than the surface area of the sphere
         unloadBuffer = new List<Chunk>(13 * UnloadDist * UnloadDist);
         oldPlayerCoords = world.WorldToChunkCoords(player.transform.position);
+
+        checkingThread = new Thread(new ParameterizedThreadStart(checkChunkLoading));
+        checkingThread.Start(world.WorldToChunkCoords(player.transform.position));
     }
 
     public void Update()
@@ -29,7 +33,7 @@ public class WorldLoader : MonoBehaviour
         if (playerChunkCoords != oldPlayerCoords)
         {
             //doing this so we can check off the main thread and make sure there is only one thread doing the checking.
-            if (checkingThread != null && !checkingThread.IsAlive)
+            if (!checkingThread.IsAlive)
                 checkingThread.Abort();
             checkingThread = new Thread(new ParameterizedThreadStart(checkChunkLoading));
             checkingThread.Start(playerChunkCoords);
@@ -70,11 +74,13 @@ public class WorldLoader : MonoBehaviour
                 }
             }
         }
+        toLoad = loadBuffer.Count;
         Task.Run(() => loadAll(loadBuffer));
     }
 
     private async void loadAll(List<Vector3Int> pos)
     {
+        Debug.Log("loadAll called, count: " + pos.Count);
         List<Chunk> chunks = await WorldGenerator.generateList(world, pos);
         MeshGenerator.spawnAll(chunks, world);
     }

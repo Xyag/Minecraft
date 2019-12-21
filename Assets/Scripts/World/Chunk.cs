@@ -15,7 +15,7 @@ public class Chunk
 
     public Chunk(Block[,,] blocks, Vector3Int chunkCoords)
     {
-        if (blocks.GetLength(0) != CHUNK_SIZE || blocks.GetLength(1) != CHUNK_SIZE || blocks.GetLength(2) != CHUNK_SIZE)
+        if (blocks != null && (blocks.GetLength(0) != CHUNK_SIZE || blocks.GetLength(1) != CHUNK_SIZE || blocks.GetLength(2) != CHUNK_SIZE))
             throw new System.Exception("Invalid chunk dimensions: " + chunkCoords);
 
         this.worldCoords = CHUNK_SIZE * chunkCoords;

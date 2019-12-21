@@ -10,8 +10,8 @@ public static class MeshGenerator
 {
     public static GameObject emptyChunk;
     public static PhysicMaterial chunkPhysMaterial;
-    public static ChunkBuffer finishedMeshes = new ChunkBuffer(100); //100 cause that's probably more than we need.
-    private static Stopwatch stopwatch = new Stopwatch();
+    public static ChunkBuffer finishedMeshes = new ChunkBuffer(3000); //3000 cause that's probably more than we need.
+    private static readonly Stopwatch stopwatch = new Stopwatch();
 
     public static void spawnFromQueue(long maxTimeMS, int minSpawns)
     {
@@ -31,16 +31,18 @@ public static class MeshGenerator
     }
     public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
+        UnityEngine.Debug.Log("spawning all");
         foreach (var item in collection)
         {
-            Task.Run(() => MeshGenerator.generateAndQueue(world, item));
+            UnityEngine.Debug.Log("generating chunk");
+            Task.Run(() => generateAndQueue(world, item));
         }
     }
     public static void spawnAll(Chunk[,,] collection, World world) //multidimensional arrays implement GetIterator() but not GetIterator<T>(). weird
     {
         foreach (var item in collection)
         {
-            Task.Run(() => MeshGenerator.generateAndQueue(world, item));
+            Task.Run(() => generateAndQueue(world, item));
         }
     }
 
@@ -49,7 +51,7 @@ public static class MeshGenerator
         List<Task<Chunk>> meshTasks = new List<Task<Chunk>>();
         foreach (var item in collection)
         {
-            meshTasks.Add(Task.Run<Chunk>(() => MeshGenerator.generateMesh(world, item)));
+            meshTasks.Add(Task.Run(() => generateMesh(world, item)));
         }
         while (meshTasks.Count > 0)
         {
@@ -58,7 +60,7 @@ public static class MeshGenerator
             meshTasks.Remove(finishedTask);
         }
     }
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void setBoxValues(BoxCollider box, BoxInt info)
     {
         box.material = chunkPhysMaterial;
@@ -72,8 +74,12 @@ public static class MeshGenerator
         var chunkObject = chunk.gameObject;
         if (chunkObject == null)
         {
-            chunkObject = MonoBehaviour.Instantiate(emptyChunk);
+            chunkObject = Object.Instantiate(emptyChunk);
             chunk.gameObject = chunkObject;
+        }
+        if (data == null)
+        {
+            return;
         }
         chunkObject.name = (data.worldPos / Chunk.CHUNK_SIZE).ToString();
         chunkObject.transform.position = data.worldPos;
@@ -95,15 +101,29 @@ public static class MeshGenerator
         if (chunk != null && chunk.gameObject != null)
         {
             MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
+            
             mf.mesh.Clear();
-            mf.mesh.SetVertices(data.vertices);
-            mf.mesh.SetTriangles(data.triangles, 0);
-            mf.mesh.SetNormals(data.normals);
-            mf.mesh.SetUVs(0, data.uvs);
+            if (data != null)
+            {
+                mf.mesh.SetVertices(data.vertices);
+                mf.mesh.SetTriangles(data.triangles, 0);
+                mf.mesh.SetNormals(data.normals);
+                mf.mesh.SetUVs(0, data.uvs);
+            }
 
             List<BoxCollider> colliders = new List<BoxCollider>();
             chunk.gameObject.GetComponents<BoxCollider>(colliders);
+
             int space = colliders.Count;
+
+            if (data == null && colliders != null)
+            {
+                for (int i = 0; i < space; i++)
+                {
+                    colliders[i].enabled = false;
+                }
+                return;
+            }
 
             if (space > data.boxColliders.Count)
             {
@@ -147,13 +167,24 @@ public static class MeshGenerator
                 MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
                 MeshData data = generateMesh(world, chunk).renderData;
                 mf.mesh.Clear();
+                List<BoxCollider> colliders = new List<BoxCollider>();
+                chunk.gameObject.GetComponents<BoxCollider>(colliders);
+                int space = colliders.Count;
+
+                if (data == null)
+                {
+                    for (int i = 0; i < space; i++)
+                    {
+                        colliders[i].enabled = false;
+                    }
+                    return;
+                }
+                
                 mf.mesh.SetVertices(data.vertices);
                 mf.mesh.SetTriangles(data.triangles, 0);
                 mf.mesh.SetNormals(data.normals);
                 mf.mesh.SetUVs(0, data.uvs);
-                List<BoxCollider> colliders = new List<BoxCollider>();
-                chunk.gameObject.GetComponents<BoxCollider>(colliders);
-                int space = colliders.Count;
+                
                 if (space > data.boxColliders.Count)
                 {
                     for (int i = 0; i < data.boxColliders.Count; i++)
@@ -198,8 +229,8 @@ public static class MeshGenerator
         }
 
     }
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void PosXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void posXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + size.x + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + 0.5f, blockPos.y + size.x + 0.5f, blockPos.z + size.y + 0.5f));
@@ -213,8 +244,8 @@ public static class MeshGenerator
 
         setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosX, new Vector2(size.y, size.x));
     }
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void NegXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void negXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.x + 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.x + 0.5f, blockPos.z - 0.5f));
@@ -229,8 +260,8 @@ public static class MeshGenerator
         setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegX, new Vector2(size.y, size.x));
     }
 
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void PosYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void posYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + 0.5f, blockPos.z + size.y + 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + 0.5f, blockPos.z - 0.5f));
@@ -244,8 +275,8 @@ public static class MeshGenerator
 
         setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosY, new Vector2(size.y, size.x));
     }
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void NegYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void negYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y - 0.5f, blockPos.z + size.y + 0.5f));
@@ -260,8 +291,8 @@ public static class MeshGenerator
         setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegY, new Vector2(size.y, size.x));
     }
 
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void PosZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void posZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + size.y + 0.5f, blockPos.z + 0.5f));
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.y + 0.5f, blockPos.z + 0.5f));
@@ -276,8 +307,8 @@ public static class MeshGenerator
         setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosZ, size);
     }
 
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-    public static void NegZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void negZFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
     {
         vertices.Add(new Vector3(blockPos.x - 0.5f, blockPos.y + size.y + 0.5f, blockPos.z - 0.5f));
         vertices.Add(new Vector3(blockPos.x + size.x + 0.5f, blockPos.y + size.y + 0.5f, blockPos.z - 0.5f));
@@ -293,7 +324,7 @@ public static class MeshGenerator
     }
 
 
-    [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void setUpTrisNorms(int faceIndex, List<int> triangles, List<Vector3> uvs, int texId, Vector2 size)
     {
         int vertexStart = faceIndex * 4;
@@ -314,11 +345,24 @@ public static class MeshGenerator
 
     public static void generateAndQueue(World world, Chunk chunk)
     {
+        UnityEngine.Debug.Log("generating...");
         generateMesh(world, chunk);
-        finishedMeshes.Enqueue(chunk);
+        if (chunk.renderData != null)
+        {
+            UnityEngine.Debug.Log("added to q");
+            finishedMeshes.Enqueue(chunk);
+        }
+        else
+        {
+            UnityEngine.Debug.Log("not added to q");
+        }
     }
     public static Chunk generateMesh(World world, Chunk chunk)
     {
+        if (chunk.blocks == null)
+        {
+            return chunk;
+        }
         void set2dFalse(bool[,,] array)
         {
             for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
@@ -335,7 +379,6 @@ public static class MeshGenerator
         List<Vector3> normals;
         List<Vector3> uvs;
         List<BoxInt> boxColliders;
-        BlockData[] dataStore = new BlockData[6];
         bool[,,] meshed = new bool[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE]; //default value is false
         if (renderData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
         {
@@ -417,7 +460,7 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        PosXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
+                        posXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
                         faceIndex++;
                     }
                 }
@@ -474,7 +517,7 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        NegXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
+                        negXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
                         faceIndex++;
                     }
                 }
@@ -531,7 +574,7 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        PosYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
+                        posYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
                         faceIndex++;
                     }
                 }
@@ -588,7 +631,7 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        NegYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
+                        negYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
                         faceIndex++;
                     }
                 }
@@ -645,7 +688,7 @@ public static class MeshGenerator
                         }
                     endLoop:
                         yExtent--; //we always overcount by 1.
-                        PosZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
+                        posZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
                         faceIndex++;
                     }
                 }
@@ -702,7 +745,7 @@ public static class MeshGenerator
                         }
                     endLoop:
                         yExtent--; //we always overcount by 1.
-                        NegZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
+                        negZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
                         faceIndex++;
                     }
                 }

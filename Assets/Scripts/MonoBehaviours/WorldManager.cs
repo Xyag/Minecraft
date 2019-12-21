@@ -22,6 +22,8 @@ public class WorldManager : MonoBehaviour
     public void Awake()
     {
         Application.targetFrameRate = 60;
+        Cursor.lockState = CursorLockMode.Locked;
+
         targetFrameTimeMS = (long)(1000.0f/(float)Application.targetFrameRate);
         frameTimer = new Stopwatch();
 
@@ -48,21 +50,6 @@ public class WorldManager : MonoBehaviour
             wl.world = world;
             wl.player = Player;
         }
-    }
-    public async void Start()
-    {
-        float currTime = Time.realtimeSinceStartup;
-        int worldHeight = 5 * 16 / Chunk.CHUNK_SIZE;
-        int worldWidth = 5 * 16 / Chunk.CHUNK_SIZE;
-        Cursor.lockState = CursorLockMode.Locked;
-
-        await WorldGenerator.generateRegion(world, new Vector3Int(-worldWidth / 2, -worldHeight / 2, -worldWidth / 2), worldWidth, worldHeight, worldWidth);
-        float newTime = Time.realtimeSinceStartup;
-        UnityEngine.Debug.Log("generated " + (1000 * (newTime - currTime)));
-        currTime = Time.realtimeSinceStartup;
-
-        MeshGenerator.spawnAll(world.loadedChunks.Values, world);
-        newTime = Time.realtimeSinceStartup;
     }
     public void Update()
     {

@@ -27,7 +27,7 @@ public struct Block
     }
 }
 
-public enum BlockType
+public enum BlockType : short
 {
     chunk_border,
     empty,
