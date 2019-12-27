@@ -32,8 +32,10 @@ public class WorldManager : MonoBehaviour
         MeshGenerator.emptyChunk = EmptyChunkPrefab;
         MeshGenerator.chunkPhysMaterial = ChunkPhysicMaterial;
 
-        world = new World();
-        world.explosionParticles = ExplosionParticles;
+        world = new World
+        {
+            explosionParticles = ExplosionParticles
+        };
 
         Player.world = world;
         world.loadedEntities.Add(Player);
@@ -57,16 +59,10 @@ public class WorldManager : MonoBehaviour
     }
     public void LateUpdate()
     {
-        //we do about half the remaining frame time on loads and half on unloads
+        //we divide the remaining frame time between spawning and unloading
         long currTime = frameTimer.ElapsedMilliseconds;
-        MeshGenerator.spawnFromQueue((targetFrameTimeMS-currTime)/2,MinChunkLoadsPerFrame);
+        MeshGenerator.spawnFromQueue((targetFrameTimeMS-currTime)/3,MinChunkLoadsPerFrame);
         currTime = frameTimer.ElapsedMilliseconds;
-        world.unloadFromQueue(targetFrameTimeMS-currTime,MinChunkUnloadsPerFrame);
-    }
-    async Task slowGen(World world, int startZ)
-    {
-        System.Threading.Thread.Sleep(2);
-        startZ++;
-        await WorldGenerator.generateRegion(world, new Vector3Int(0, 0, startZ), 10, 10, 1);
+        world.unloadFromQueue((targetFrameTimeMS-currTime)/2,MinChunkUnloadsPerFrame);
     }
 }

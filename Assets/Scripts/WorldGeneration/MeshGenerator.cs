@@ -31,10 +31,10 @@ public static class MeshGenerator
     }
     public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
-        UnityEngine.Debug.Log("spawning all");
+        //UnityEngine.Debug.Log("spawning all");
         foreach (var item in collection)
         {
-            UnityEngine.Debug.Log("generating chunk");
+            //UnityEngine.Debug.Log("generating chunk");
             Task.Run(() => generateAndQueue(world, item));
         }
     }
@@ -345,16 +345,16 @@ public static class MeshGenerator
 
     public static void generateAndQueue(World world, Chunk chunk)
     {
-        UnityEngine.Debug.Log("generating...");
+        //UnityEngine.Debug.Log("generating...");
         generateMesh(world, chunk);
         if (chunk.renderData != null)
         {
-            UnityEngine.Debug.Log("added to q");
+            //UnityEngine.Debug.Log("added to q");
             finishedMeshes.Enqueue(chunk);
         }
         else
         {
-            UnityEngine.Debug.Log("not added to q");
+            //UnityEngine.Debug.Log("not added to q");
         }
     }
     public static Chunk generateMesh(World world, Chunk chunk)
@@ -391,7 +391,8 @@ public static class MeshGenerator
             renderData.triangles = new List<int>(initFaceCount * 6);
             renderData.normals = new List<Vector3>(initFaceCount * 4);
             renderData.uvs = new List<Vector3>(initFaceCount * 4);
-            renderData.boxColliders = new List<BoxInt>(initFaceCount / 25); //DIVING JUST CAUSE
+            //renderData.boxColliders = new List<BoxInt>(initFaceCount / 25); //DIVING JUST CAUSE
+            renderData.boxColliders = new List<BoxInt>(1);
         }
         else
         {
@@ -775,7 +776,7 @@ public static class MeshGenerator
             }
         }*/
         //now we do collision
-        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+        /*for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
         {
             for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
             {
@@ -833,7 +834,7 @@ public static class MeshGenerator
                     boxColliders.Add(new BoxInt(x,y,z,xExtent-1,yExtent-1,zExtent-1));
                 }
             }
-        }
+        }*/
 
         renderData.faceCount = faceIndex;
         MeshData meshData = new MeshData

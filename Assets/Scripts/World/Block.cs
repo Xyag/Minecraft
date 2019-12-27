@@ -6,7 +6,7 @@ public struct Block
 {
     public static BlockData[] blockTypes = new BlockData[]
     {
-        new BlockData { type = BlockType.chunk_border, opaque = true, fullCollision = false },
+        new BlockData { type = BlockType.chunk_border, opaque = false, fullCollision = false },
         new BlockData { type = BlockType.empty, opaque = false, fullCollision = false },
         new BlockData { type = BlockType.stone, opaque = true, fullCollision = true, texture = new BlockTexture(0) },
         new BlockData { type = BlockType.dirt, opaque = true, fullCollision = true, texture = new BlockTexture(1) },

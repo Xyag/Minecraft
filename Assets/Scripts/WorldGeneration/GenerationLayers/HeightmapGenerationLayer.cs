@@ -52,10 +52,10 @@ public class HeightmapGenerationLayer : IGenerationLayer
                 }
             }
         }
-        Debug.Log("done with chunk generation");
+        //Debug.Log("done with chunk generation");
         if (rejected)
         {
-            Debug.Log("rejecting chunk");
+            //Debug.Log("rejecting chunk");
         }
         return chunk;
     }

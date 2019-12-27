@@ -64,7 +64,7 @@ public class World
         {
             if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
             {
-                en.rigidbody.AddForce((en.transform.position - (Vector3)origin).normalized * explosionStrength, ForceMode.VelocityChange);
+                en.velocity += (en.transform.position - (Vector3)origin).normalized * explosionStrength;
             }
         }
         var explo = MonoBehaviour.Instantiate(explosionParticles);

@@ -80,7 +80,7 @@ public class WorldLoader : MonoBehaviour
 
     private async void loadAll(List<Vector3Int> pos)
     {
-        Debug.Log("loadAll called, count: " + pos.Count);
+        //Debug.Log("loadAll called, count: " + pos.Count);
         List<Chunk> chunks = await WorldGenerator.generateList(world, pos);
         MeshGenerator.spawnAll(chunks, world);
     }

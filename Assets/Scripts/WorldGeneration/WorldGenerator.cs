@@ -64,7 +64,7 @@ public static class WorldGenerator
             minHeight = 5,
             maxHeight = 12
         };
-        var mountainsGenerator = new HeightmapGenerationLayer
+        var mountainsGeneratorp = new HeightmapGenerationLayer
         {
             heightNoise = new NoiseGroup(3, 0.0002f, 5.0f, 1024, 0.25f, seed - 1230),
             heightOffset = 16,
@@ -73,7 +73,19 @@ public static class WorldGenerator
             underGroundBlock = BlockType.stone,
             midDepth = 1,
         };
-        
+        var mountainsGenerator = new MountainGenerationLayer
+        {
+            heightNoise = new NoiseGroup(3, 0.0002f, 5.0f, 1024, 0.25f, seed - 1230),
+            snowHeightNoise = new NoiseGroup(1, 0.3f, 0, 2, 0, seed - 17),
+            snowLevelNoise = new NoiseGroup(2, 0.01f, 5, 25, 0.2f, seed - 8888),
+            heightOffset = 16,
+            snowBlock = BlockType.snow,
+            surfaceBlock = BlockType.dirt,
+            underGroundBlock = BlockType.stone,
+            surfaceDepth = 2,
+            snowHeight = 100,
+        };
+
         generationLayers.Add(mountainsGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);

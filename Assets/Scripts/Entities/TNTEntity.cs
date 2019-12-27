@@ -16,17 +16,20 @@ public class TNTEntity : Entity
     private float flashTimer;
     private bool onBaseColor = true;
     new private Light light;
+    new private MeshRenderer renderer;
     public override void Start()
     {
         base.Start();
+        renderer = GetComponent<MeshRenderer>();
         type = EntityType.tnt;
-        rigidbody.AddForce(startVelocity, ForceMode.VelocityChange);
+        velocity = startVelocity;
         light = GetComponent<Light>();
         flashTimer = 0;
         renderer.material.color = baseColor;
     }
     public override void Update()
     {
+        base.Update();
         flashTimer += Time.deltaTime;
         if (flashTimer > flashInterval)
         {
