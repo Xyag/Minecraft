@@ -878,9 +878,10 @@ MonoBehaviour:
     type: 2}
   ExplosionParticles: {fileID: 5349629523392216424, guid: 2bc5ba24ceaacb34182cf1430ab54231,
     type: 3}
-  Player: {fileID: 1345584382}
+  Player: {fileID: 1345584381}
   spawnableEntities:
   - {fileID: 2170946847389907774, guid: 682a3e4a2c9631043b8fba574d9e6572, type: 3}
+  - {fileID: 793787596180533010, guid: af2e56b97ec77b048a278c4ca8053a35, type: 3}
   MinChunkLoadsPerFrame: 5
   MinChunkUnloadsPerFrame: 5
 --- !u!4 &856809224
@@ -1068,7 +1069,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.8, z: 0}
+  m_LocalPosition: {x: 0, y: 0.8, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1345584389}
@@ -1807,6 +1808,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334282, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334282, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334282, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.85
+      objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334286, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
       propertyPath: m_Constraints
@@ -1835,7 +1851,7 @@ PrefabInstance:
     - target: {fileID: 6311213787349334284, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
@@ -1871,6 +1887,11 @@ PrefabInstance:
         type: 3}
       propertyPath: flying
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: bulletSpeed
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334327, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
@@ -1920,13 +1941,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57113a2e72343bb449acd8ee42d6075f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  checkCollision: 1
   velocity: {x: 0, y: 0, z: 0}
   acceleration: {x: 0, y: -9.8, z: 0}
-  dimensions: {x: 0.8, y: 1.7, z: 0.8}
-  friction: 1
+  extents: {x: 0.4, y: 0.85, z: 0.4}
+  friction: 0.5
   hitDirections: 000000000000
+  other: {x: 0, y: 0, z: 0}
   health: 0
   type: 0
+  physics: {fileID: 0}
 --- !u!114 &1345584384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1968,11 +1992,11 @@ MonoBehaviour:
   JumpTimeout: 0.05
   FlyVerticalAccel: 50
   FlyFrictionCoeff: 0.1
-  GroundRayCastDist: 1.5
-  GroundLayer: 8
   flying: 1
   sprinting: 0
   worldManager: {fileID: 0}
+  playerCamera: {fileID: 963194225}
+  bulletSpeed: 60
 --- !u!23 &1345584387
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1981,7 +2005,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 1257518161}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1345584381}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 0
@@ -2021,7 +2045,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 1257518161}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1345584381}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!4 &1345584389
 Transform:
   m_ObjectHideFlags: 0
@@ -2032,7 +2056,7 @@ Transform:
   m_GameObject: {fileID: 1345584381}
   m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
   m_LocalPosition: {x: 0, y: 30, z: 0}
-  m_LocalScale: {x: 0.7, y: 1, z: 1}
+  m_LocalScale: {x: 0.8, y: 0.85, z: 0.8}
   m_Children:
   - {fileID: 963194228}
   m_Father: {fileID: 0}

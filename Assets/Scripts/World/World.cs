@@ -5,20 +5,30 @@ using System;
 
 public class World
 {
+    const float EXPLOSION_PARTICLES_SCALE = 0.125f;
+
     public ChunkBuffer unloadChunkBuffer = new ChunkBuffer(1000);
     public Dictionary<Vector3Int, Chunk> loadedChunks = new Dictionary<Vector3Int, Chunk>();
-    public Dictionary<EntityType, GameObject> entityTypes = new Dictionary<EntityType, GameObject>();
+    public Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public List<Entity> loadedEntities = new List<Entity>();
-    public GameObject explosionParticles;
+    public GameObject explosionParticles
+    {
+        set
+        {
+            explosionParticlesPool = Pool<GameObject>.createGameObjectPool(value, this);
+        }
+    }
+
 
     private System.Diagnostics.Stopwatch unloadStopwatch = new System.Diagnostics.Stopwatch();
+    private Pool<GameObject> explosionParticlesPool;
 
     public GameObject spawnEntity(EntityType type, Vector3 position)
     {
-        var go = UnityEngine.Object.Instantiate(entityTypes[type]);
+        var go = entityTypes[type].get();
         go.transform.position = position;
         Entity e = go.GetComponent<Entity>();
-        e.world = this;
+        e.initialize(this);
         return go;
     }
     public async void createExplosion(float explosionStrength, Vector3Int origin)
@@ -62,14 +72,14 @@ public class World
         Task t = MeshGenerator.remeshAll(remeshQueue, this, remeshQueue.Count);
         foreach (var en in loadedEntities)
         {
-            if (Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
+            if (en != null && Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
             {
                 en.velocity += (en.transform.position - (Vector3)origin).normalized * explosionStrength;
             }
         }
-        var explo = MonoBehaviour.Instantiate(explosionParticles);
+        var explo = explosionParticlesPool.get();
+        explo.transform.localScale = explosionStrength * EXPLOSION_PARTICLES_SCALE * Vector3.one;
         explo.transform.position = origin;
-        MonoBehaviour.Destroy(explo, 5);
         await t;
     }
     public void unloadFromQueue(long maxTimeMS, int minUnloads)
@@ -293,6 +303,7 @@ public class World
 
     }
     //returns empty if the chunk doesn't exist
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public BlockData getBlock(Vector3Int worldCoords)
     {
         Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);

@@ -2,7 +2,8 @@ using UnityEngine;
 
 public class ItemData
 {
-    public Texture texture;
+    public ItemType type;
+    public string textureName;
     public string displayName;
     public int maxStack = 999;
 

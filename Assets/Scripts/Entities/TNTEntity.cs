@@ -4,9 +4,7 @@ using UnityEngine;
 public class TNTEntity : Entity
 {
     public Vector3 startVelocity = Vector3.up;
-    [HideInInspector]
     public float timeToDetonate;
-    [HideInInspector]
     public float explosionStrength;
 
     public Color baseColor;
@@ -14,6 +12,7 @@ public class TNTEntity : Entity
     public float flashInterval;
 
     private float flashTimer;
+    private float explosionTimer;
     private bool onBaseColor = true;
     new private Light light;
     new private MeshRenderer renderer;
@@ -47,13 +46,14 @@ public class TNTEntity : Entity
             }
         }
 
-        timeToDetonate -= Time.deltaTime;
-        if (0 > timeToDetonate)
+        explosionTimer += Time.deltaTime;
+        if (explosionTimer >= timeToDetonate)
             explode();
     }
     private void explode()
     {
         world.createExplosion(explosionStrength, new Vector3Int((int)transform.position.x, (int)transform.position.y, (int)transform.position.z));
-        Delete();
+        explosionTimer = 0;
+        Disable();
     }
 }

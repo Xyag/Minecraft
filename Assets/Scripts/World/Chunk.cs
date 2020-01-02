@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Chunk
 {
-    public const int CHUNK_SIZE = 16;
+    public const int CHUNK_SIZE = 32;
     public const int BLOCK_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
     public Block[,,] blocks;

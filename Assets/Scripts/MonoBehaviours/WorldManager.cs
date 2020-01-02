@@ -3,19 +3,17 @@ using System.Threading.Tasks;
 using System.Collections;
 using System.Diagnostics;
 
-[RequireComponent(typeof(TextureLoader))]
 public class WorldManager : MonoBehaviour
 {
     public GameObject EmptyChunkPrefab;
     public PhysicMaterial ChunkPhysicMaterial;
     public World world;
     public GameObject ExplosionParticles;
-    public Entity Player;
+    public GameObject Player;
     public GameObject[] spawnableEntities;
     public int MinChunkLoadsPerFrame = 5;
     public int MinChunkUnloadsPerFrame = 5;
 
-    private TextureLoader textureLoader;
     private long targetFrameTimeMS;
     private Stopwatch frameTimer;
 
@@ -27,8 +25,6 @@ public class WorldManager : MonoBehaviour
         targetFrameTimeMS = (long)(1000.0f/(float)Application.targetFrameRate);
         frameTimer = new Stopwatch();
 
-        textureLoader = GetComponent<TextureLoader>();
-
         MeshGenerator.emptyChunk = EmptyChunkPrefab;
         MeshGenerator.chunkPhysMaterial = ChunkPhysicMaterial;
 
@@ -37,20 +33,21 @@ public class WorldManager : MonoBehaviour
             explosionParticles = ExplosionParticles
         };
 
-        Player.world = world;
-        world.loadedEntities.Add(Player);
+        var playerEntity = Player.GetComponent<Entity>();
+        playerEntity.initialize(world);
+        world.loadedEntities.Add(playerEntity);
 
         foreach (var go in spawnableEntities)
         {
             var entity = go.GetComponent<Entity>();
-            world.entityTypes.Add(entity.type, go);
+            world.entityTypes.Add(entity.type, Pool<GameObject>.createGameObjectPool(go, world));
         }
 
         WorldLoader wl = GetComponent<WorldLoader>();
         if (wl)
         {
             wl.world = world;
-            wl.player = Player;
+            wl.player = playerEntity;
         }
     }
     public void Update()
@@ -61,8 +58,14 @@ public class WorldManager : MonoBehaviour
     {
         //we divide the remaining frame time between spawning and unloading
         long currTime = frameTimer.ElapsedMilliseconds;
-        MeshGenerator.spawnFromQueue((targetFrameTimeMS-currTime)/3,MinChunkLoadsPerFrame);
+        MeshGenerator.spawnFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkLoadsPerFrame);
         currTime = frameTimer.ElapsedMilliseconds;
-        world.unloadFromQueue((targetFrameTimeMS-currTime)/2,MinChunkUnloadsPerFrame);
+        world.unloadFromQueue((targetFrameTimeMS - currTime) / 2, MinChunkUnloadsPerFrame);
+        currTime = frameTimer.ElapsedMilliseconds;
+        if (currTime > targetFrameTimeMS)
+        {
+            UnityEngine.Debug.Log((currTime - targetFrameTimeMS) + " ms over time");
+        }
+        
     }
 }
