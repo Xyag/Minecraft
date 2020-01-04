@@ -9,5 +9,4 @@ public class MeshData
     public List<int> triangles;
     public List<Vector3> normals;
     public List<Vector3> uvs;
-    public List<BoxInt> boxColliders;
 }

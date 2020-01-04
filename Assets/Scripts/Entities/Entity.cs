@@ -10,8 +10,9 @@ public class Entity : PhysicsObject
     public override void Awake()
     {
         base.Awake();
-        inventory.items = new Item[1];
+        inventory.items = new Item[10];
         inventory.items[0] = new Item(ItemType.minishark, 1);
+        inventory.items[1] = new Item(ItemType.bullet, 10);
     }
 
     public virtual void Delete()

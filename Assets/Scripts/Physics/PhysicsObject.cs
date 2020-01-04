@@ -64,6 +64,10 @@ public class PhysicsObject : MonoBehaviour
     }
     protected void doCollision()
     {
+        for (int i = 0; i < hitDirections.Length; i++)
+        {
+            hitDirections[i] = false;
+        }
         Vector3 postPosition = transform.position;
 
         Vector3 frameVelocity = velocity * Time.deltaTime; //this is the amount the object will move this frame

@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class WorldLoadingProgress : MonoBehaviour
 {
     public GameObject PanelObject;
+    public PlayerManager playerManager;
     public Slider SliderUI;
     public Text LoadingText;
     public WorldLoader WorldLoad;
@@ -45,6 +46,7 @@ public class WorldLoadingProgress : MonoBehaviour
                     Time.timeScale = 1;
                     running = false;
                     PanelObject.SetActive(false);
+                    playerManager.finishedLoading();
                 }
             }
         }

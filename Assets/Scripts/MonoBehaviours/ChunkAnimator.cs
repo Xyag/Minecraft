@@ -6,7 +6,7 @@ public class ChunkAnimator : MonoBehaviour
 {
     private const float LERP_SPEED = 5.0f;
     private const float LERP_FINISH_TOLERANCE = 0.99f;
-    private void Awake()
+    private void OnEnable()
     {
         transform.localScale = new Vector3(0, 0, 0);  
     }

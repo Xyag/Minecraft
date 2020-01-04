@@ -8,9 +8,9 @@ using System.Diagnostics;
 
 public static class MeshGenerator
 {
-    public static GameObject emptyChunk;
     public static PhysicMaterial chunkPhysMaterial;
     public static ChunkBuffer finishedMeshes = new ChunkBuffer(3000); //3000 cause that's probably more than we need.
+    public static Pool<GameObject> chunkPool;
     private static readonly Stopwatch stopwatch = new Stopwatch();
 
     public static void spawnFromQueue(long maxTimeMS, int minSpawns)
@@ -60,21 +60,13 @@ public static class MeshGenerator
             meshTasks.Remove(finishedTask);
         }
     }
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void setBoxValues(BoxCollider box, BoxInt info)
-    {
-        box.material = chunkPhysMaterial;
-        box.center = new Vector3((float)info.x + (float)info.dx * 0.5f,
-              (float)info.y + (float)info.dy * 0.5f, (float)info.z + (float)info.dz * 0.5f);
-        box.size = new Vector3(info.dx+1, info.dy+1, info.dz+1);
-    }
     public static void spawnChunk(Chunk chunk)
     {
         var data = chunk.renderData;
         var chunkObject = chunk.gameObject;
         if (chunkObject == null)
         {
-            chunkObject = Object.Instantiate(emptyChunk);
+            chunkObject = chunkPool.get();
             chunk.gameObject = chunkObject;
         }
         if (data == null)
@@ -90,11 +82,6 @@ public static class MeshGenerator
         mf.mesh.SetTriangles(data.triangles, 0);
         mf.mesh.SetNormals(data.normals);
         mf.mesh.SetUVs(0, data.uvs);
-        for (int i = 0; i < data.boxColliders.Count; i++)
-        {
-            BoxCollider box = chunkObject.AddComponent<BoxCollider>();
-            setBoxValues(box, data.boxColliders[i]);
-        }
     }
     public static void replaceChunkMesh(Chunk chunk, MeshData data, World world)
     {
@@ -109,48 +96,6 @@ public static class MeshGenerator
                 mf.mesh.SetTriangles(data.triangles, 0);
                 mf.mesh.SetNormals(data.normals);
                 mf.mesh.SetUVs(0, data.uvs);
-            }
-
-            List<BoxCollider> colliders = new List<BoxCollider>();
-            chunk.gameObject.GetComponents<BoxCollider>(colliders);
-
-            int space = colliders.Count;
-
-            if (data == null && colliders != null)
-            {
-                for (int i = 0; i < space; i++)
-                {
-                    colliders[i].enabled = false;
-                }
-                return;
-            }
-
-            if (space > data.boxColliders.Count)
-            {
-                for (int i = 0; i < data.boxColliders.Count; i++)
-                {
-                    var box = colliders[i];
-                    box.enabled = true;
-                    setBoxValues(box, data.boxColliders[i]);
-                }
-                for (int i = data.boxColliders.Count; i < space; i++)
-                {
-                    colliders[i].enabled = false;
-                }
-            }
-            else
-            {
-                for (int i = 0; i < space; i++)
-                {
-                    var box = colliders[i];
-                    box.enabled = true;
-                    setBoxValues(box, data.boxColliders[i]);
-                }
-                for (int i = space; i < data.boxColliders.Count; i++)
-                {
-                    var box = chunk.gameObject.AddComponent<BoxCollider>();
-                    setBoxValues(box, data.boxColliders[i]);
-                }
             }
         }
     }
@@ -167,52 +112,11 @@ public static class MeshGenerator
                 MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
                 MeshData data = generateMesh(world, chunk).renderData;
                 mf.mesh.Clear();
-                List<BoxCollider> colliders = new List<BoxCollider>();
-                chunk.gameObject.GetComponents<BoxCollider>(colliders);
-                int space = colliders.Count;
-
-                if (data == null)
-                {
-                    for (int i = 0; i < space; i++)
-                    {
-                        colliders[i].enabled = false;
-                    }
-                    return;
-                }
-                
                 mf.mesh.SetVertices(data.vertices);
                 mf.mesh.SetTriangles(data.triangles, 0);
                 mf.mesh.SetNormals(data.normals);
                 mf.mesh.SetUVs(0, data.uvs);
                 
-                if (space > data.boxColliders.Count)
-                {
-                    for (int i = 0; i < data.boxColliders.Count; i++)
-                    {
-                        var box = colliders[i];
-                        box.enabled = true;
-                        setBoxValues(box, data.boxColliders[i]);
-                    }
-                    for (int i = data.boxColliders.Count; i < space; i++)
-                    {
-                        colliders[i].enabled = false;
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < space; i++)
-                    {
-                        var box = colliders[i];
-                        box.enabled = true;
-                        setBoxValues(box, data.boxColliders[i]);
-                    }
-                    for (int i = space; i < data.boxColliders.Count; i++)
-                    {
-                        var box = chunk.gameObject.AddComponent<BoxCollider>();
-                        box.enabled = true;
-                        setBoxValues(box, data.boxColliders[i]);
-                    }
-                }
             }
             if (alertNeighbors)
             {
@@ -378,7 +282,6 @@ public static class MeshGenerator
         List<int> triangles;
         List<Vector3> normals;
         List<Vector3> uvs;
-        List<BoxInt> boxColliders;
         bool[,,] meshed = new bool[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE]; //default value is false
         if (renderData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
         {
@@ -391,8 +294,6 @@ public static class MeshGenerator
             renderData.triangles = new List<int>(initFaceCount * 6);
             renderData.normals = new List<Vector3>(initFaceCount * 4);
             renderData.uvs = new List<Vector3>(initFaceCount * 4);
-            //renderData.boxColliders = new List<BoxInt>(initFaceCount / 25); //DIVING JUST CAUSE
-            renderData.boxColliders = new List<BoxInt>(1);
         }
         else
         {
@@ -400,13 +301,11 @@ public static class MeshGenerator
             renderData.triangles.Clear();
             renderData.normals.Clear();
             renderData.uvs.Clear();
-            renderData.boxColliders.Clear();
         }
         vertices = renderData.vertices;
         triangles = renderData.triangles;
         normals = renderData.normals;
         uvs = renderData.uvs;
-        boxColliders = renderData.boxColliders;
         int faceIndex = 0;
         //we take by layers. first we do +x, then -x, then y's, then z's
         //we're also doing greedy meshing: basically we find the biggest rectangle that can fit on the block we loop on and go with that
@@ -762,7 +661,6 @@ public static class MeshGenerator
             triangles = triangles,
             normals = normals,
             uvs = uvs,
-            boxColliders = boxColliders,
         };
         chunk.renderData = meshData;
         return chunk;

@@ -11,11 +11,27 @@ public class MinisharkData : ItemData
     {
         if (Time.time - lastUseTime > useInterval)
         {
-            lastUseTime = Time.time;
-            GameObject obj = user.world.spawnEntity(bulletType, user.transform.position);
-            Vector3 shootV = useDirection * bulletSpeed;
-            obj.transform.LookAt(user.transform.position + useDirection);
-            obj.GetComponent<PhysicsObject>().velocity = shootV;
+            bool hasAmmo = false;
+            for (int i = 0; i < user.inventory.items.Length; i++)
+            {
+                if (user.inventory.items[i].type == ItemType.bullet && user.inventory.items[i].count > 0)
+                {
+                    hasAmmo = true;
+                    user.inventory.items[i].count--;
+                    if (user.inventory.items[i].count == 0)
+                    {
+                        user.inventory.items[i].type = ItemType.empty;
+                    }
+                }
+            }
+            if (hasAmmo)
+            {
+                lastUseTime = Time.time;
+                GameObject obj = user.world.spawnEntity(bulletType, user.transform.position);
+                Vector3 shootV = useDirection * bulletSpeed;
+                obj.transform.LookAt(user.transform.position + useDirection);
+                obj.GetComponent<PhysicsObject>().velocity = shootV;
+            }
         }
     }
 }

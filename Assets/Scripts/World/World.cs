@@ -15,7 +15,7 @@ public class World
     {
         set
         {
-            explosionParticlesPool = Pool<GameObject>.createGameObjectPool(value, this);
+            explosionParticlesPool = Pool<GameObject>.createEntityPool(value, this);
         }
     }
 
@@ -126,7 +126,10 @@ public class World
         lock (loadedChunks)
         {
             if (chunk.gameObject != null)
-                MonoBehaviour.Destroy(chunk.gameObject);
+            {
+                chunk.gameObject.SetActive(false);
+                chunk.gameObject.GetComponent<MeshFilter>().sharedMesh.Clear();
+            }
             loadedChunks.Remove(chunk.chunkCoords);
         }
     }
@@ -420,5 +423,88 @@ public class World
                 toStore[(int)Direction.NegZ] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y, blockCoords.z - 1));
             }
         }
+    }
+    public BlockHit raycast(Vector3 origin, Vector3 direction, float distance)
+    {
+        direction = direction.normalized;
+        if (direction.x == 0)
+        {
+            direction.x = 0.0000001f;
+        }
+        if (direction.y == 0)
+        {
+            direction.y = 0.0000001f;
+        }
+        if (direction.z == 0)
+        {
+            direction.z = 0.0000001f;
+        }
+        
+        float distanceRemaining = distance;
+        Vector3 currEnd = origin;
+
+
+        while (distanceRemaining >= 0)
+        {
+            Vector3Int hitCoords = new Vector3Int(Mathf.RoundToInt(currEnd.x), Mathf.RoundToInt(currEnd.y), Mathf.RoundToInt(currEnd.z));
+            BlockData hitBlock = getBlock(hitCoords);
+            if (hitBlock.fullCollision)
+            {
+                return new BlockHit(hitBlock, hitCoords);
+            }
+
+            Vector3 dests = new Vector3(Mathf.Floor(currEnd.x + 1), Mathf.Floor(currEnd.y + 1), Mathf.Floor(currEnd.z + 1));
+            if (direction.x < 0)
+            {
+                dests.x = Mathf.Ceil(currEnd.x - 1);
+            }
+            if (direction.y < 0)
+            {
+                dests.y = Mathf.Ceil(currEnd.y - 1);
+            }
+            if (direction.z < 0)
+            {
+                dests.z = Mathf.Ceil(currEnd.z - 1);
+            }
+            Vector3 delta = currEnd - dests;
+            if (distanceRemaining*distanceRemaining < delta.sqrMagnitude)
+            {
+                return new BlockHit(null, Vector3Int.zero, false);
+            }
+            Vector3 ratios = new Vector3(delta.x/direction.x,delta.y/direction.y,delta.z/direction.z);
+            if (ratios.x <= ratios.y && ratios.x <= ratios.z)
+            {
+                float r = delta.x / direction.x;
+                Vector3 travel = -new Vector3(delta.x, r*direction.y,r*direction.z);
+                currEnd.x += travel.x;
+                currEnd.y += travel.y;
+                currEnd.z += travel.z;
+                distanceRemaining -= travel.magnitude;
+                Debug.Log("direction: " + direction + ", " + travel.normalized.ToString());
+            }
+            else if (ratios.y <= ratios.z)
+            {
+                //y is best
+                float r = delta.y / direction.y;
+                Vector3 travel = -new Vector3(r*direction.x, delta.y, r * direction.z);
+                currEnd.x += travel.x;
+                currEnd.y += travel.y;
+                currEnd.z += travel.z;
+                distanceRemaining -= travel.magnitude;
+                Debug.Log("direction: " + direction + ", " + travel.normalized.ToString());
+            }
+            else
+            {
+                //z is best
+                float r = delta.z / direction.z;
+                Vector3 travel = -new Vector3(r * direction.x, r * direction.y, delta.z);
+                currEnd.x += travel.x;
+                currEnd.y += travel.y;
+                currEnd.z += travel.z;
+                distanceRemaining -= travel.magnitude;
+                Debug.Log("direction: " + direction + ", " + travel.normalized.ToString());
+            }
+        }
+        return new BlockHit(null, Vector3Int.zero, false);
     }
 }
