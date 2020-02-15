@@ -20,9 +20,11 @@ public static class MeshGenerator
             stopwatch.Restart();
             int chunksRemaining = finishedMeshes.Count();
             int spawns = 0;
+            if(chunksRemaining != 0)
+                UnityEngine.Debug.Log(chunksRemaining);
             while (chunksRemaining > 0 && (spawns < minSpawns || stopwatch.ElapsedMilliseconds < maxTimeMS))
             {
-                Chunk data = finishedMeshes.Dequeue();
+                Chunk data = finishedMeshes.Pop();
                 spawnChunk(data);
                 chunksRemaining--;
                 spawns++;
@@ -103,6 +105,10 @@ public static class MeshGenerator
     {
         if (chunk != null)
         {
+            if (chunk.blocks == null)
+            {
+                return;
+            }
             if (chunk.gameObject == null)
             {
                 spawnChunk(generateMesh(world, chunk));
@@ -253,8 +259,11 @@ public static class MeshGenerator
         generateMesh(world, chunk);
         if (chunk.renderData != null)
         {
-            //UnityEngine.Debug.Log("added to q");
-            finishedMeshes.Enqueue(chunk);
+            UnityEngine.Debug.Log("added to q");
+            if (!finishedMeshes.Replace(chunk))
+            {
+                finishedMeshes.Push(chunk);
+            }
         }
         else
         {
@@ -263,406 +272,407 @@ public static class MeshGenerator
     }
     public static Chunk generateMesh(World world, Chunk chunk)
     {
-        if (chunk.blocks == null)
-        {
-            return chunk;
-        }
-        void set2dFalse(bool[,,] array)
-        {
+            if (chunk.blocks == null)
+            {
+                return chunk;
+            }
+            void set2dFalse(bool[,,] array)
+            {
+                for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+                {
+                    for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+                    {
+                        array[0, x, y] = false;
+                    }
+                }
+            }
+            MeshData renderData = chunk.renderData;
+            List<Vector3> vertices;
+            List<int> triangles;
+            List<Vector3> normals;
+            List<Vector3> uvs;
+            bool[,,] meshed = new bool[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE]; //default value is false
+            if (renderData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
+            {
+                //from testing, there's ususally < ~0.4x the block capacity in faces.
+                //the initial allocations may be a little too big, but it's worth it to reduce resizes.
+                chunk.renderData = new MeshData();
+                renderData = chunk.renderData;
+                int initFaceCount = (int)((float)(Chunk.BLOCK_COUNT) * 0.4f);
+                renderData.vertices = new List<Vector3>(initFaceCount * 4);
+                renderData.triangles = new List<int>(initFaceCount * 6);
+                renderData.normals = new List<Vector3>(initFaceCount * 4);
+                renderData.uvs = new List<Vector3>(initFaceCount * 4);
+            }
+            else
+            {
+                renderData.vertices.Clear();
+                renderData.triangles.Clear();
+                renderData.normals.Clear();
+                renderData.uvs.Clear();
+            }
+            vertices = renderData.vertices;
+            triangles = renderData.triangles;
+            normals = renderData.normals;
+            uvs = renderData.uvs;
+            int faceIndex = 0;
+            //we take by layers. first we do +x, then -x, then y's, then z's
+            //we're also doing greedy meshing: basically we find the biggest rectangle that can fit on the block we loop on and go with that
+            //good animation here https://www.gedge.ca/dev/2014/08/17/greedy-voxel-meshing
+
+            //+x faces
             for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
             {
                 for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                 {
-                    array[0, x, y] = false;
-                }
-            }
-        }
-        MeshData renderData = chunk.renderData;
-        List<Vector3> vertices;
-        List<int> triangles;
-        List<Vector3> normals;
-        List<Vector3> uvs;
-        bool[,,] meshed = new bool[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE]; //default value is false
-        if (renderData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
-        {
-            //from testing, there's ususally < ~0.4x the block capacity in faces.
-            //the initial allocations may be a little too big, but it's worth it to reduce resizes.
-            chunk.renderData = new MeshData();
-            renderData = chunk.renderData;
-            int initFaceCount = (int)((float)(Chunk.BLOCK_COUNT) * 0.4f);
-            renderData.vertices = new List<Vector3>(initFaceCount * 4);
-            renderData.triangles = new List<int>(initFaceCount * 6);
-            renderData.normals = new List<Vector3>(initFaceCount * 4);
-            renderData.uvs = new List<Vector3>(initFaceCount * 4);
-        }
-        else
-        {
-            renderData.vertices.Clear();
-            renderData.triangles.Clear();
-            renderData.normals.Clear();
-            renderData.uvs.Clear();
-        }
-        vertices = renderData.vertices;
-        triangles = renderData.triangles;
-        normals = renderData.normals;
-        uvs = renderData.uvs;
-        int faceIndex = 0;
-        //we take by layers. first we do +x, then -x, then y's, then z's
-        //we're also doing greedy meshing: basically we find the biggest rectangle that can fit on the block we loop on and go with that
-        //good animation here https://www.gedge.ca/dev/2014/08/17/greedy-voxel-meshing
-
-        //+x faces
-        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-        {
-            for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
-            {
-                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-                {
-                    BlockType type = chunk.blocks[x, y, z].type;
-
-                    if (x == Chunk.CHUNK_SIZE - 1)
+                    for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).opaque)
+                        BlockType type = chunk.blocks[x, y, z].type;
+
+                        if (x == Chunk.CHUNK_SIZE - 1)
                         {
+                            if (world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).opaque)
+                            {
+                                meshed[0, y, z] = true;
+                                continue;
+                            }
+                        }
+                        else if (Block.blockTypes[(int)chunk.blocks[x + 1, y, z].type].opaque) { meshed[0, y, z] = true; continue; }
+                        if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
+                        {
+                            //first we expand in y-direction
                             meshed[0, y, z] = true;
-                            continue;
-                        }
-                    }
-                    else if (Block.blockTypes[(int)chunk.blocks[x + 1, y, z].type].opaque) { meshed[0, y, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
-                    {
-                        //first we expand in y-direction
-                        meshed[0, y, z] = true;
-                        int yExtent = 1;
-                        while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && chunk.blocks[x, y + yExtent, z].type == type)
-                        {
-                            meshed[0, y + yExtent, z] = true;
-                            yExtent++;
-                        }
-                        yExtent--; //we will always overcount by 1.
-                        //now we expand in z-direction
-                        int zExtent = 1; //we already checked the initial column
-                        while (z + zExtent < Chunk.CHUNK_SIZE)
-                        {
-                            //we have to check all the blocks on the edge of the rectangle now
-                            for (int i = y; i <= y + yExtent; i++)
+                            int yExtent = 1;
+                            while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && chunk.blocks[x, y + yExtent, z].type == type)
                             {
-                                if (chunk.blocks[x, i, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                meshed[0, y + yExtent, z] = true;
+                                yExtent++;
+                            }
+                            yExtent--; //we will always overcount by 1.
+                                       //now we expand in z-direction
+                            int zExtent = 1; //we already checked the initial column
+                            while (z + zExtent < Chunk.CHUNK_SIZE)
+                            {
+                                //we have to check all the blocks on the edge of the rectangle now
+                                for (int i = y; i <= y + yExtent; i++)
                                 {
-                                    goto endLoop;
+                                    if (chunk.blocks[x, i, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                    {
+                                        goto endLoop;
+                                    }
                                 }
+                                for (int i = y; i <= y + yExtent; i++)
+                                {
+                                    meshed[0, i, z + zExtent] = true;
+                                }
+                                zExtent++;
                             }
-                            for (int i = y; i <= y + yExtent; i++)
-                            {
-                                meshed[0, i, z + zExtent] = true;
-                            }
-                            zExtent++;
+                        endLoop:
+                            zExtent--; //we always overcount by 1.
+                            posXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
+                            faceIndex++;
                         }
-                    endLoop:
-                        zExtent--; //we always overcount by 1.
-                        posXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
                     }
                 }
+                set2dFalse(meshed);
             }
-            set2dFalse(meshed);
-        }
 
-        //-x faces
-        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-        {
-            for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
-            {
-                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-                {
-                    BlockType type = chunk.blocks[x, y, z].type;
-
-                    if (x == 0)
-                    {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, y, z)).opaque)
-                        {
-                            meshed[0, y, z] = true;
-                            continue;
-                        }
-                    }
-                    else if (Block.blockTypes[(int)chunk.blocks[x - 1, y, z].type].opaque) { meshed[0, y, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
-                    {
-                        //first we expand in y-direction
-                        meshed[0, y, z] = true;
-                        int yExtent = 1;
-                        while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && chunk.blocks[x, y + yExtent, z].type == type)
-                        {
-                            meshed[0, y + yExtent, z] = true;
-                            yExtent++;
-                        }
-                        yExtent--; //we will always overcount by 1.
-                        //now we expand in z-direction
-                        int zExtent = 1; //we already checked the initial column
-                        while (z + zExtent < Chunk.CHUNK_SIZE)
-                        {
-                            //we have to check all the blocks on the edge of the rectangle now
-                            for (int i = y; i <= y + yExtent; i++)
-                            {
-                                if (chunk.blocks[x, i, z + zExtent].type != type || meshed[0, i, z + zExtent])
-                                {
-                                    goto endLoop;
-                                }
-                            }
-                            for (int i = y; i <= y + yExtent; i++)
-                            {
-                                meshed[0, i, z + zExtent] = true;
-                            }
-                            zExtent++;
-                        }
-                    endLoop:
-                        zExtent--; //we always overcount by 1.
-                        negXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
-                    }
-                }
-            }
-            set2dFalse(meshed);
-        }
-
-        //+y faces
-        for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
-        {
+            //-x faces
             for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
             {
-                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                    {
+                        BlockType type = chunk.blocks[x, y, z].type;
 
-                    if (y == Chunk.CHUNK_SIZE - 1)
-                    {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y + 1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).opaque)
+                        if (x == 0)
                         {
-                            meshed[0, x, z] = true;
-                            continue;
-                        }
-                    }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y + 1, z].type].opaque) { meshed[0, x, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
-                    {
-                        //first we expand in x-direction
-                        meshed[0, x, z] = true;
-                        int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && chunk.blocks[x + xExtent, y, z].type == type)
-                        {
-                            meshed[0, x + xExtent, z] = true;
-                            xExtent++;
-                        }
-                        xExtent--; //we will always overcount by 1.
-                        //now we expand in z-direction
-                        int zExtent = 1; //we already checked the initial column
-                        while (z + zExtent < Chunk.CHUNK_SIZE)
-                        {
-                            //we have to check all the blocks on the edge of the rectangle now
-                            for (int i = x; i <= x + xExtent; i++)
+                            if (world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, y, z)).opaque)
                             {
-                                if (chunk.blocks[i, y, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                meshed[0, y, z] = true;
+                                continue;
+                            }
+                        }
+                        else if (Block.blockTypes[(int)chunk.blocks[x - 1, y, z].type].opaque) { meshed[0, y, z] = true; continue; }
+                        if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
+                        {
+                            //first we expand in y-direction
+                            meshed[0, y, z] = true;
+                            int yExtent = 1;
+                            while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && chunk.blocks[x, y + yExtent, z].type == type)
+                            {
+                                meshed[0, y + yExtent, z] = true;
+                                yExtent++;
+                            }
+                            yExtent--; //we will always overcount by 1.
+                                       //now we expand in z-direction
+                            int zExtent = 1; //we already checked the initial column
+                            while (z + zExtent < Chunk.CHUNK_SIZE)
+                            {
+                                //we have to check all the blocks on the edge of the rectangle now
+                                for (int i = y; i <= y + yExtent; i++)
                                 {
-                                    goto endLoop;
+                                    if (chunk.blocks[x, i, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                    {
+                                        goto endLoop;
+                                    }
                                 }
+                                for (int i = y; i <= y + yExtent; i++)
+                                {
+                                    meshed[0, i, z + zExtent] = true;
+                                }
+                                zExtent++;
                             }
-                            for (int i = x; i <= x + xExtent; i++)
-                            {
-                                meshed[0, i, z + zExtent] = true;
-                            }
-                            zExtent++;
+                        endLoop:
+                            zExtent--; //we always overcount by 1.
+                            negXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
+                            faceIndex++;
                         }
-                    endLoop:
-                        zExtent--; //we always overcount by 1.
-                        posYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
                     }
                 }
+                set2dFalse(meshed);
             }
-            set2dFalse(meshed);
-        }
 
-        //-y faces
-        for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
-        {
-            for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-            {
-                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-                {
-                    BlockType type = chunk.blocks[x, y, z].type;
-
-                    if (y == 0)
-                    {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y - 1, chunk.chunkCoords.z), new Vector3Int(x, Chunk.CHUNK_SIZE - 1, z)).opaque)
-                        {
-                            meshed[0, x, z] = true;
-                            continue;
-                        }
-                    }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y - 1, z].type].opaque) { meshed[0, x, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
-                    {
-                        //first we expand in x-direction
-                        meshed[0, x, z] = true;
-                        int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && chunk.blocks[x + xExtent, y, z].type == type)
-                        {
-                            meshed[0, x + xExtent, z] = true;
-                            xExtent++;
-                        }
-                        xExtent--; //we will always overcount by 1.
-                        //now we expand in z-direction
-                        int zExtent = 1; //we already checked the initial column
-                        while (z + zExtent < Chunk.CHUNK_SIZE)
-                        {
-                            //we have to check all the blocks on the edge of the rectangle now
-                            for (int i = x; i <= x + xExtent; i++)
-                            {
-                                if (chunk.blocks[i, y, z + zExtent].type != type || meshed[0, i, z + zExtent])
-                                {
-                                    goto endLoop;
-                                }
-                            }
-                            for (int i = x; i <= x + xExtent; i++)
-                            {
-                                meshed[0, i, z + zExtent] = true;
-                            }
-                            zExtent++;
-                        }
-                    endLoop:
-                        zExtent--; //we always overcount by 1.
-                        negYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
-                    }
-                }
-            }
-            set2dFalse(meshed);
-        }
-
-        //+z faces
-        for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-        {
+            //+y faces
             for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
             {
                 for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                    {
+                        BlockType type = chunk.blocks[x, y, z].type;
 
-                    if (z == Chunk.CHUNK_SIZE - 1)
-                    {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).opaque)
+                        if (y == Chunk.CHUNK_SIZE - 1)
                         {
-                            meshed[0, x, y] = true;
-                            continue;
-                        }
-                    }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y, z + 1].type].opaque) { meshed[0, x, y] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
-                    {
-                        //first we expand in x-direction
-                        meshed[0, x, y] = true;
-                        int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && chunk.blocks[x + xExtent, y, z].type == type)
-                        {
-                            meshed[0, x + xExtent, y] = true;
-                            xExtent++;
-                        }
-                        xExtent--; //we will always overcount by 1.
-                        //now we expand in z-direction
-                        int yExtent = 1; //we already checked the initial column
-                        while (y + yExtent < Chunk.CHUNK_SIZE)
-                        {
-                            //we have to check all the blocks on the edge of the rectangle now
-                            for (int i = x; i <= x + xExtent; i++)
+                            if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y + 1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).opaque)
                             {
-                                if (chunk.blocks[i, y + yExtent, z].type != type || meshed[0, i, y + yExtent])
+                                meshed[0, x, z] = true;
+                                continue;
+                            }
+                        }
+                        else if (Block.blockTypes[(int)chunk.blocks[x, y + 1, z].type].opaque) { meshed[0, x, z] = true; continue; }
+                        if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
+                        {
+                            //first we expand in x-direction
+                            meshed[0, x, z] = true;
+                            int xExtent = 1;
+                            while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && chunk.blocks[x + xExtent, y, z].type == type)
+                            {
+                                meshed[0, x + xExtent, z] = true;
+                                xExtent++;
+                            }
+                            xExtent--; //we will always overcount by 1.
+                                       //now we expand in z-direction
+                            int zExtent = 1; //we already checked the initial column
+                            while (z + zExtent < Chunk.CHUNK_SIZE)
+                            {
+                                //we have to check all the blocks on the edge of the rectangle now
+                                for (int i = x; i <= x + xExtent; i++)
                                 {
-                                    goto endLoop;
+                                    if (chunk.blocks[i, y, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                    {
+                                        goto endLoop;
+                                    }
                                 }
+                                for (int i = x; i <= x + xExtent; i++)
+                                {
+                                    meshed[0, i, z + zExtent] = true;
+                                }
+                                zExtent++;
                             }
-                            for (int i = x; i <= x + xExtent; i++)
-                            {
-                                meshed[0, i, y + yExtent] = true;
-                            }
-                            yExtent++;
+                        endLoop:
+                            zExtent--; //we always overcount by 1.
+                            posYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
+                            faceIndex++;
                         }
-                    endLoop:
-                        yExtent--; //we always overcount by 1.
-                        posZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
                     }
                 }
+                set2dFalse(meshed);
             }
-            set2dFalse(meshed);
-        }
 
-        //-z faces
-        for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-        {
-            for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+            //-y faces
+            for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+            {
+                for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+                {
+                    for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                    {
+                        BlockType type = chunk.blocks[x, y, z].type;
+
+                        if (y == 0)
+                        {
+                            if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y - 1, chunk.chunkCoords.z), new Vector3Int(x, Chunk.CHUNK_SIZE - 1, z)).opaque)
+                            {
+                                meshed[0, x, z] = true;
+                                continue;
+                            }
+                        }
+                        else if (Block.blockTypes[(int)chunk.blocks[x, y - 1, z].type].opaque) { meshed[0, x, z] = true; continue; }
+                        if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
+                        {
+                            //first we expand in x-direction
+                            meshed[0, x, z] = true;
+                            int xExtent = 1;
+                            while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && chunk.blocks[x + xExtent, y, z].type == type)
+                            {
+                                meshed[0, x + xExtent, z] = true;
+                                xExtent++;
+                            }
+                            xExtent--; //we will always overcount by 1.
+                                       //now we expand in z-direction
+                            int zExtent = 1; //we already checked the initial column
+                            while (z + zExtent < Chunk.CHUNK_SIZE)
+                            {
+                                //we have to check all the blocks on the edge of the rectangle now
+                                for (int i = x; i <= x + xExtent; i++)
+                                {
+                                    if (chunk.blocks[i, y, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                    {
+                                        goto endLoop;
+                                    }
+                                }
+                                for (int i = x; i <= x + xExtent; i++)
+                                {
+                                    meshed[0, i, z + zExtent] = true;
+                                }
+                                zExtent++;
+                            }
+                        endLoop:
+                            zExtent--; //we always overcount by 1.
+                            negYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
+                            faceIndex++;
+                        }
+                    }
+                }
+                set2dFalse(meshed);
+            }
+
+            //+z faces
+            for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
             {
                 for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+                    {
+                        BlockType type = chunk.blocks[x, y, z].type;
 
-                    if (z == 0)
-                    {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, Chunk.CHUNK_SIZE - 1)).opaque)
+                        if (z == Chunk.CHUNK_SIZE - 1)
                         {
+                            if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).opaque)
+                            {
+                                meshed[0, x, y] = true;
+                                continue;
+                            }
+                        }
+                        else if (Block.blockTypes[(int)chunk.blocks[x, y, z + 1].type].opaque) { meshed[0, x, y] = true; continue; }
+                        if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
+                        {
+                            //first we expand in x-direction
                             meshed[0, x, y] = true;
-                            continue;
-                        }
-                    }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y, z - 1].type].opaque) { meshed[0, x, y] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
-                    {
-                        //first we expand in x-direction
-                        meshed[0, x, y] = true;
-                        int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && chunk.blocks[x + xExtent, y, z].type == type)
-                        {
-                            meshed[0, x + xExtent, y] = true;
-                            xExtent++;
-                        }
-                        xExtent--; //we will always overcount by 1.
-                        //now we expand in y-direction
-                        int yExtent = 1; //we already checked the initial column
-                        while (y + yExtent < Chunk.CHUNK_SIZE)
-                        {
-                            //we have to check all the blocks on the edge of the rectangle now
-                            for (int i = x; i <= x + xExtent; i++)
+                            int xExtent = 1;
+                            while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && chunk.blocks[x + xExtent, y, z].type == type)
                             {
-                                if (chunk.blocks[i, y + yExtent, z].type != type || meshed[0, i, y + yExtent])
+                                meshed[0, x + xExtent, y] = true;
+                                xExtent++;
+                            }
+                            xExtent--; //we will always overcount by 1.
+                                       //now we expand in z-direction
+                            int yExtent = 1; //we already checked the initial column
+                            while (y + yExtent < Chunk.CHUNK_SIZE)
+                            {
+                                //we have to check all the blocks on the edge of the rectangle now
+                                for (int i = x; i <= x + xExtent; i++)
                                 {
-                                    goto endLoop; //I think this is the one time in my life that a goto is the best solution
+                                    if (chunk.blocks[i, y + yExtent, z].type != type || meshed[0, i, y + yExtent])
+                                    {
+                                        goto endLoop;
+                                    }
                                 }
+                                for (int i = x; i <= x + xExtent; i++)
+                                {
+                                    meshed[0, i, y + yExtent] = true;
+                                }
+                                yExtent++;
                             }
-                            for (int i = x; i <= x + xExtent; i++)
-                            {
-                                meshed[0, i, y + yExtent] = true;
-                            }
-                            yExtent++;
+                        endLoop:
+                            yExtent--; //we always overcount by 1.
+                            posZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
+                            faceIndex++;
                         }
-                    endLoop:
-                        yExtent--; //we always overcount by 1.
-                        negZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
                     }
                 }
+                set2dFalse(meshed);
             }
-            set2dFalse(meshed);
-        }
 
-        renderData.faceCount = faceIndex;
-        MeshData meshData = new MeshData
-        {
-            worldPos = chunk.worldCoords,
-            vertices = vertices,
-            triangles = triangles,
-            normals = normals,
-            uvs = uvs,
-        };
-        chunk.renderData = meshData;
-        return chunk;
-    }
+            //-z faces
+            for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+            {
+                for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+                {
+                    for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+                    {
+                        BlockType type = chunk.blocks[x, y, z].type;
+
+                        if (z == 0)
+                        {
+                            if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, Chunk.CHUNK_SIZE - 1)).opaque)
+                            {
+                                meshed[0, x, y] = true;
+                                continue;
+                            }
+                        }
+                        else if (Block.blockTypes[(int)chunk.blocks[x, y, z - 1].type].opaque) { meshed[0, x, y] = true; continue; }
+                        if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
+                        {
+                            //first we expand in x-direction
+                            meshed[0, x, y] = true;
+                            int xExtent = 1;
+                            while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && chunk.blocks[x + xExtent, y, z].type == type)
+                            {
+                                meshed[0, x + xExtent, y] = true;
+                                xExtent++;
+                            }
+                            xExtent--; //we will always overcount by 1.
+                                       //now we expand in y-direction
+                            int yExtent = 1; //we already checked the initial column
+                            while (y + yExtent < Chunk.CHUNK_SIZE)
+                            {
+                                //we have to check all the blocks on the edge of the rectangle now
+                                for (int i = x; i <= x + xExtent; i++)
+                                {
+                                    if (chunk.blocks[i, y + yExtent, z].type != type || meshed[0, i, y + yExtent])
+                                    {
+                                        goto endLoop; //I think this is the one time in my life that a goto is the best solution
+                                    }
+                                }
+                                for (int i = x; i <= x + xExtent; i++)
+                                {
+                                    meshed[0, i, y + yExtent] = true;
+                                }
+                                yExtent++;
+                            }
+                        endLoop:
+                            yExtent--; //we always overcount by 1.
+                            negZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
+                            faceIndex++;
+                        }
+                    }
+                }
+                set2dFalse(meshed);
+            }
+
+            renderData.faceCount = faceIndex;
+            MeshData meshData = new MeshData
+            {
+                worldPos = chunk.worldCoords,
+                vertices = vertices,
+                triangles = triangles,
+                normals = normals,
+                uvs = uvs,
+            };
+            chunk.renderData = meshData;
+            return chunk;
+        }
+    
 }

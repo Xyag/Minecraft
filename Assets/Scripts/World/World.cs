@@ -91,7 +91,7 @@ public class World
             int unloads = 0;
             while (chunksRemaining > 0 && (unloads < minUnloads || unloadStopwatch.ElapsedMilliseconds < maxTimeMS))
             {
-                Chunk data = unloadChunkBuffer.Dequeue();
+                Chunk data = unloadChunkBuffer.Pop();
                 unloadChunk(data);
                 chunksRemaining--;
                 unloads++;
@@ -274,33 +274,33 @@ public class World
             loadChunk(chunk);
             chunk.blocks[blockCoords.x,blockCoords.y,blockCoords.z].type = block;
         }
-        MeshGenerator.remeshChunk(this, chunk, false);
+        Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
 
         //check surrounding chunks
         if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
         {
-            MeshGenerator.remeshChunk(this, chunk);
+            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
         }
         if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
         {
-            MeshGenerator.remeshChunk(this, chunk);
+            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
         }
         if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
         {
-            MeshGenerator.remeshChunk(this, chunk);
+            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
         }
 
         if (blockCoords.x == 0 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
         {
-            MeshGenerator.remeshChunk(this, chunk);
+            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
         }
         if (blockCoords.y == 0 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
         {
-            MeshGenerator.remeshChunk(this, chunk);
+            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
         }
         if (blockCoords.z == 0 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
         {
-            MeshGenerator.remeshChunk(this, chunk);
+            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
         }
 
 
@@ -442,14 +442,27 @@ public class World
         
         float distanceRemaining = distance;
         Vector3 currEnd = origin;
-
+        List<Chunk> toRemesh = new List<Chunk>(2);
 
         while (distanceRemaining >= 0)
         {
+
             Vector3Int hitCoords = new Vector3Int(Mathf.RoundToInt(currEnd.x), Mathf.RoundToInt(currEnd.y), Mathf.RoundToInt(currEnd.z));
+            setBlock(hitCoords, BlockType.sand);
+            Chunk c = getChunk(WorldToChunkCoords(hitCoords));
+            if (!toRemesh.Contains(c))
+            {
+                toRemesh.Add(c);
+            }
+            
             BlockData hitBlock = getBlock(hitCoords);
             if (hitBlock.fullCollision)
             {
+                foreach (Chunk chunk in toRemesh)
+                {
+                    Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
+                    Debug.Log(chunk.worldCoords);
+                }
                 return new BlockHit(hitBlock, hitCoords);
             }
 
@@ -467,10 +480,6 @@ public class World
                 dests.z = Mathf.Ceil(currEnd.z - 1);
             }
             Vector3 delta = currEnd - dests;
-            if (distanceRemaining*distanceRemaining < delta.sqrMagnitude)
-            {
-                return new BlockHit(null, Vector3Int.zero, false);
-            }
             Vector3 ratios = new Vector3(delta.x/direction.x,delta.y/direction.y,delta.z/direction.z);
             if (ratios.x <= ratios.y && ratios.x <= ratios.z)
             {
@@ -480,7 +489,6 @@ public class World
                 currEnd.y += travel.y;
                 currEnd.z += travel.z;
                 distanceRemaining -= travel.magnitude;
-                Debug.Log("direction: " + direction + ", " + travel.normalized.ToString());
             }
             else if (ratios.y <= ratios.z)
             {
@@ -491,7 +499,6 @@ public class World
                 currEnd.y += travel.y;
                 currEnd.z += travel.z;
                 distanceRemaining -= travel.magnitude;
-                Debug.Log("direction: " + direction + ", " + travel.normalized.ToString());
             }
             else
             {
@@ -502,8 +509,12 @@ public class World
                 currEnd.y += travel.y;
                 currEnd.z += travel.z;
                 distanceRemaining -= travel.magnitude;
-                Debug.Log("direction: " + direction + ", " + travel.normalized.ToString());
             }
+        }
+        foreach (Chunk c in toRemesh)
+        {
+            Task.Run(() => MeshGenerator.generateAndQueue(this, c));
+            Debug.Log(c.worldCoords);
         }
         return new BlockHit(null, Vector3Int.zero, false);
     }

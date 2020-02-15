@@ -56,7 +56,7 @@ public class WorldLoader : MonoBehaviour
         }
         foreach (var chunk in unloadBuffer)
         {
-            world.unloadChunkBuffer.Enqueue(chunk);
+            world.unloadChunkBuffer.Push(chunk);
         }
         loadBuffer.Clear();
         for (int x = -LoadDist; x <= LoadDist; x++)

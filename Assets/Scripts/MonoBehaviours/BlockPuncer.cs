@@ -5,30 +5,30 @@ using UnityEngine;
 public class BlockPuncer : MonoBehaviour
 {
     public WorldManager worldManager;
-    public int GroundLayer;
-    private int groundLayerMask;
-    // Start is called before the first frame update
-    void Start()
-    {
-        groundLayerMask = 1 << GroundLayer;
-    }
+    public GameObject blockHighlight;
 
     // Update is called once per frame
     void Update()
     {
         if (Input.GetMouseButtonDown(0))
         {
-            var hit = worldManager.world.raycast(transform.position, transform.forward, 10);
-            if (hit.hit)
+            worldManager.world.raycast(transform.position, transform.forward, 10);
+        }
+        /*if (hit.hit)
+        {
+            if (Input.GetMouseButtonDown(0))
             {
-                Debug.Log(hit.coords);
                 worldManager.world.setBlockAndMesh(hit.coords, BlockType.empty);
             }
-            else
-            {
-                Debug.Log("no hit");
-            }
+            blockHighlight.SetActive(true);
+            blockHighlight.transform.position = hit.coords;
+            //Debug.Log("hit " + hit.coords);
         }
+        else
+        {
+            //Debug.Log("miss");
+            blockHighlight.SetActive(false);
+        }*/
         /*if (Input.GetMouseButtonDown(1))
         {
             Vector3Int dest = GetRayDest();

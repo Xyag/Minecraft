@@ -3,24 +3,26 @@ using System.Collections.Generic;
 
 public class ChunkBuffer
 {
-    private Queue<Chunk> finishedMeshes;
+    private List<Chunk> finishedMeshes;
     public ChunkBuffer(int initSize)
     {
-        finishedMeshes = new Queue<Chunk>(initSize);
+        finishedMeshes = new List<Chunk>(initSize);
     }
-    public void Enqueue(Chunk data)
+    public void Push(Chunk data)
     {
         lock (finishedMeshes)
         {
-            finishedMeshes.Enqueue(data);
+            finishedMeshes.Add(data);
         }
     }
 
-    public Chunk Dequeue()
+    public Chunk Pop()
     {
         lock (finishedMeshes)
         {
-            return finishedMeshes.Dequeue();
+            var top = finishedMeshes[finishedMeshes.Count - 1];
+            finishedMeshes.RemoveAt(finishedMeshes.Count - 1);
+            return top;
         }
     }
 
@@ -29,6 +31,31 @@ public class ChunkBuffer
         lock (finishedMeshes)
         {
             return finishedMeshes.Count;
+        }
+    }
+
+    public Chunk Get(int position)
+    {
+        lock (finishedMeshes)
+        {
+            return finishedMeshes[position];
+        }
+    }
+
+    public bool Replace(Chunk toReplace)
+    {
+        lock (finishedMeshes)
+        {
+            int location = finishedMeshes.FindIndex(c => toReplace.chunkCoords == c.chunkCoords);
+            if (location == -1)
+            {
+                return false;
+            }
+            else
+            {
+                finishedMeshes[location] = toReplace;
+                return true;
+            }
         }
     }
 }
