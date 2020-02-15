@@ -4,10 +4,15 @@ public class PlayerManager : MonoBehaviour
 {
     public Entity Player;
     public InventoryUI inventoryUI;
+    public GameObject blockHighlight;
+    public WorldManager worldManager;
     private bool inventoryOpen = false;
 
     public void Update()
     {
+        var hit = worldManager.world.raycast(transform.position, transform.forward, 10);
+        blockHighlight.SetActive(hit.hit);
+        blockHighlight.transform.position = hit.coords;
         if (Input.GetKeyDown(KeyCode.E))
         {
             inventoryOpen = !inventoryOpen;
@@ -22,6 +27,25 @@ public class PlayerManager : MonoBehaviour
                 inventoryUI.close();
             }
         }
+        if (Input.GetMouseButtonDown(0))
+        {
+            worldManager.world.setBlockAndMesh(hit.coords, BlockType.empty);
+            Debug.Log(hit.coords);
+        }
+        if (Input.GetMouseButtonDown(1))
+        {
+            ItemData equipped = Player.inventory.getItemData(0);
+            if (hit.hit && hit.blockHit.interactable)
+            {
+                Vector3Int chunkCoords = worldManager.world.WorldToChunkCoords(hit.coords);
+                hit.blockHit.interact(hit.coords, chunkCoords, worldManager.world.getChunk(chunkCoords), worldManager.world);
+            }
+            else
+            {
+                equipped.onUse(Player, transform.forward, worldManager.world);
+            }
+        }
+        
     }
     public void finishedLoading()
     {

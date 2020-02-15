@@ -9,4 +9,8 @@ public struct Inventory
     {
         items = new Item[size];
     }
+    public ItemData getItemData(int slot)
+    {
+        return Item.itemData[(int)items[slot].type];
+    }
 }

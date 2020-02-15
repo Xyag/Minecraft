@@ -24,7 +24,7 @@ public class WorldLoader : MonoBehaviour
         oldPlayerCoords = world.WorldToChunkCoords(player.transform.position);
 
         checkingThread = new Thread(new ParameterizedThreadStart(checkChunkLoading));
-        checkingThread.Start(world.WorldToChunkCoords(player.transform.position));
+        checkingThread.Start(oldPlayerCoords);
     }
 
     public void Update()
@@ -67,7 +67,7 @@ public class WorldLoader : MonoBehaviour
                 {
                     Vector3Int coords = playerChunkCoords + new Vector3Int(x, y, z);
                     int sqrDist = x * x + y * y + z * z;
-                    if (sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
+                    if (world.chunkInWorld(coords) && sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
                     {
                         loadBuffer.Add(coords);
                     }
@@ -80,7 +80,6 @@ public class WorldLoader : MonoBehaviour
 
     private async void loadAll(List<Vector3Int> pos)
     {
-        //Debug.Log("loadAll called, count: " + pos.Count);
         List<Chunk> chunks = await WorldGenerator.generateList(world, pos);
         MeshGenerator.spawnAll(chunks, world);
     }

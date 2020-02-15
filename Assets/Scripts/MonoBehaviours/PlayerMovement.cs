@@ -93,11 +93,6 @@ public class PlayerMovement : MonoBehaviour
             playerPhysics.velocity.y = JumpVelocity;
         }
 
-        if (Input.GetMouseButton(1))
-        {
-            player.useItem(0, playerCamera.transform.forward);
-        }
-
         jumpTimer += Time.deltaTime;
     }
 }

@@ -1,16 +1,18 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using System;
+using System.IO;
 
 public class World
 {
     const float EXPLOSION_PARTICLES_SCALE = 0.125f;
 
     public ChunkBuffer unloadChunkBuffer = new ChunkBuffer(1000);
+    public Vector3Int worldRadius = new Vector3Int(5, 5, 5);
     public Dictionary<Vector3Int, Chunk> loadedChunks = new Dictionary<Vector3Int, Chunk>();
     public Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public List<Entity> loadedEntities = new List<Entity>();
+    public string worldPath;
     public GameObject explosionParticles
     {
         set
@@ -22,7 +24,10 @@ public class World
 
     private System.Diagnostics.Stopwatch unloadStopwatch = new System.Diagnostics.Stopwatch();
     private Pool<GameObject> explosionParticlesPool;
-
+    public bool chunkInWorld(Vector3Int coords)
+    {
+        return (-worldRadius.x < coords.x && coords.x < worldRadius.x) && (-worldRadius.y < coords.y && coords.y < worldRadius.y) && (-worldRadius.z < coords.z && coords.z < worldRadius.z);
+    }
     public GameObject spawnEntity(EntityType type, Vector3 position)
     {
         var go = entityTypes[type].get();
@@ -98,27 +103,46 @@ public class World
             }
         }
     }
-    public void loadChunk(Chunk c)
+    //returns false if the chunks is valid and it needs to be generated
+    public bool loadChunkFromFile(Vector3Int coords)
     {
+        if (!chunkInWorld(coords))
+            return true;
+        lock (loadedChunks)
+        {
+            if (loadedChunks.ContainsKey(coords))
+            {
+                Debug.Log("loading already loaded chunk");
+                return true;
+            }
+            else
+            {
+                string path = worldPath + coords.ToString();
+                if (File.Exists(path))
+                {
+                    createChunk(readChunkFile(path));
+                    return true;
+                }
+                else
+                    return false;
+            }
+        }
+    }
+    public Chunk readChunkFile(string path)
+    {
+        return null;
+    }
+    public void createChunk(Chunk c)
+    {
+        if (!chunkInWorld(c.chunkCoords))
+            return;
         lock (loadedChunks)
         {
             Chunk temp;
             if (!loadedChunks.TryGetValue(c.chunkCoords, out temp))
                 loadedChunks.Add(c.chunkCoords, c);
             else
-                for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-                {
-                    for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
-                    {
-                        for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
-                        {
-                            if (c.blocks[x, y, z].type != BlockType.empty)
-                            {
-                                temp.blocks[x, y, z] = c.blocks[x, y, z];
-                            }
-                        }
-                    }
-                }
+                Debug.Log("creating already loaded chunk");
         }
     }
     public void unloadChunk(Chunk chunk)
@@ -139,20 +163,22 @@ public class World
         {
             Chunk chunk = loadedChunks[coords];
             if (chunk.gameObject != null)
-                MonoBehaviour.Destroy(chunk.gameObject);
+                chunk.gameObject.SetActive(false);
             loadedChunks.Remove(coords);
         }
     }
-    public Chunk getChunk(Vector3Int coords)
+    public Chunk getChunk(Vector3Int chunkCoords)
     {
+        if (!chunkInWorld(chunkCoords))
+            return null;
         Chunk chunk;
-        if (loadedChunks.TryGetValue(coords, out chunk))
+        if (loadedChunks.TryGetValue(chunkCoords, out chunk))
         {
             return chunk;
         }
         else
         {
-            chunk = new Chunk(null, coords);
+            chunk = new Chunk(null, chunkCoords);
             return chunk;
         }
     }
@@ -208,8 +234,7 @@ public class World
         }
         return neighbors;
     }
-    //not thread safe: loads the chunk if it doesn't exist.
-    public void setBlock(Vector3Int worldCoords, BlockType block, bool forceLoadChunk = false)
+    public Chunk setBlock(Vector3Int worldCoords, BlockType block, bool forceLoadChunk = false)
     {
         Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);
         Vector3Int blockCoords = new Vector3Int(worldCoords.x % Chunk.CHUNK_SIZE, worldCoords.y % Chunk.CHUNK_SIZE, worldCoords.z % Chunk.CHUNK_SIZE);
@@ -228,19 +253,26 @@ public class World
             chunkCoords.z -= 1;
             blockCoords.z += Chunk.CHUNK_SIZE;
         }
-        Chunk chunk;
-        if (loadedChunks.TryGetValue(chunkCoords, out chunk))
+        return setBlock(chunkCoords, blockCoords, block, forceLoadChunk);
+    }
+    public Chunk setBlock(Vector3Int chunkCoords, Vector3Int blockCoords, BlockType block, bool forceLoadChunk = false)
+    {
+        Chunk chunk = getChunk(chunkCoords);
+        if (chunk != null)
         {
             if (chunk.blocks == null)
                 chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
+            return chunk;
         }
         else if (forceLoadChunk)
         {
             chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], chunkCoords);
-            loadChunk(chunk);
+            createChunk(chunk);
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
+            return chunk;
         }
+        return null;
     }
     public void setBlockAndMesh(Vector3Int worldCoords, BlockType block)
     {
@@ -261,51 +293,11 @@ public class World
             chunkCoords.z -= 1;
             blockCoords.z += Chunk.CHUNK_SIZE;
         }
-        Chunk chunk;
-        if (loadedChunks.TryGetValue(chunkCoords, out chunk))
-        {
-            if (chunk.blocks == null)
-                chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
-            chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
-        }
-        else
-        {
-            chunk = new Chunk(new Block[Chunk.CHUNK_SIZE,Chunk.CHUNK_SIZE,Chunk.CHUNK_SIZE], chunkCoords);
-            loadChunk(chunk);
-            chunk.blocks[blockCoords.x,blockCoords.y,blockCoords.z].type = block;
-        }
-        Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-
-        //check surrounding chunks
-        if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-        }
-        if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-        }
-        if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-        }
-
-        if (blockCoords.x == 0 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-        }
-        if (blockCoords.y == 0 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-        }
-        if (blockCoords.z == 0 && loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-        }
-
-
+        Chunk chunk = setBlock(chunkCoords, blockCoords, block, true);
+        MeshGenerator.meshChunkBlockChanged(chunk, blockCoords, this);
     }
-    //returns empty if the chunk doesn't exist
+    
+    //returns chunk_border if the chunk doesn't exist
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public BlockData getBlock(Vector3Int worldCoords)
     {
@@ -326,29 +318,20 @@ public class World
             chunkCoords.z -= 1;
             blockCoords.z += Chunk.CHUNK_SIZE;
         }
-        Chunk chunk;
-        if (loadedChunks.TryGetValue(chunkCoords, out chunk))
-        {
-            if (chunk.blocks == null)
-                return Block.blockTypes[(int)BlockType.empty];
-            return Block.blockTypes[(int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type];
-        }
-        else
-        {
-            return Block.blockTypes[(int)BlockType.chunk_border];
-        }
+        return getBlock(chunkCoords, blockCoords);
     }
     //returns empty if the chunk doesn't exist
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public BlockData getBlock(Vector3Int chunkCoords, Vector3Int blockCoords)
     {
-        Chunk chunk;
-        if (loadedChunks.TryGetValue(chunkCoords, out chunk))
+        if (loadedChunks.TryGetValue(chunkCoords, out Chunk chunk))
         {
             if (chunk == null)
                 return Block.blockTypes[(int)BlockType.chunk_border];
             if (chunk.blocks == null)
                 return Block.blockTypes[(int)BlockType.empty];
-            return Block.blockTypes[(int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type];
+            int blockType = (int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type;
+            return Block.blockTypes[blockType];
         }
         else
         {
@@ -365,156 +348,21 @@ public class World
         toStore[(int)Direction.NegY] = getBlock(new Vector3Int(position.x, position.y - 1, position.z));
         toStore[(int)Direction.NegZ] = getBlock(new Vector3Int(position.x, position.y, position.z - 1));
     }
-
-    //stores blockData using getBlock() in indicies 0-5 in toStore. blockCoords should be [0,CHUNK_SIZE-1] on all axis, but we don't check this in interest of speed.
-    public void getSurroundingBlocks(Vector3Int chunkCoords, Vector3Int blockCoords, BlockData[] toStore)
-    {
-        //we have to test for chunk borders
-        if (blockCoords.x == Chunk.CHUNK_SIZE - 1)
-        {
-            toStore[(int)Direction.PosX] = getBlock(new Vector3Int(chunkCoords.x + 1, chunkCoords.y, chunkCoords.z), new Vector3Int(0, blockCoords.y, blockCoords.z));
-            toStore[(int)Direction.NegX] = getBlock(chunkCoords, new Vector3Int(blockCoords.x - 1, blockCoords.y, blockCoords.z));
-        }
-        else
-        {
-            toStore[(int)Direction.PosX] = getBlock(chunkCoords, new Vector3Int(blockCoords.x + 1, blockCoords.y, blockCoords.z));
-            if (blockCoords.x == 0)
-            {
-                toStore[(int)Direction.NegX] = getBlock(new Vector3Int(chunkCoords.x - 1, chunkCoords.y, chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, blockCoords.y, blockCoords.z));
-            }
-            else
-            {
-                toStore[(int)Direction.NegX] = getBlock(chunkCoords, new Vector3Int(blockCoords.x - 1, blockCoords.y, blockCoords.z));
-            }
-        }
-
-        if (blockCoords.y == Chunk.CHUNK_SIZE - 1)
-        {
-            toStore[(int)Direction.PosY] = getBlock(new Vector3Int(chunkCoords.x, chunkCoords.y + 1, chunkCoords.z), new Vector3Int(blockCoords.x, 0, blockCoords.z));
-            toStore[(int)Direction.NegY] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y - 1, blockCoords.z));
-        }
-        else
-        {
-            toStore[(int)Direction.PosY] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y + 1, blockCoords.z));
-            if (blockCoords.y == 0)
-            {
-                toStore[(int)Direction.NegY] = getBlock(new Vector3Int(chunkCoords.x, chunkCoords.y - 1, chunkCoords.z), new Vector3Int(blockCoords.x, Chunk.CHUNK_SIZE - 1, blockCoords.z));
-            }
-            else
-            {
-                toStore[(int)Direction.NegY] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y - 1, blockCoords.z));
-            }
-        }
-
-        if (blockCoords.z == Chunk.CHUNK_SIZE - 1)
-        {
-            toStore[(int)Direction.PosZ] = getBlock(new Vector3Int(chunkCoords.x, chunkCoords.y, chunkCoords.z + 1), new Vector3Int(blockCoords.x, blockCoords.y, 0));
-            toStore[(int)Direction.NegZ] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y, blockCoords.z - 1));
-        }
-        else
-        {
-            toStore[(int)Direction.PosZ] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y, blockCoords.z + 1));
-            if (blockCoords.z == 0)
-            {
-                toStore[(int)Direction.NegZ] = getBlock(new Vector3Int(chunkCoords.x, chunkCoords.y, chunkCoords.z - 1), new Vector3Int(blockCoords.x, blockCoords.y, Chunk.CHUNK_SIZE - 1));
-            }
-            else
-            {
-                toStore[(int)Direction.NegZ] = getBlock(chunkCoords, new Vector3Int(blockCoords.x, blockCoords.y, blockCoords.z - 1));
-            }
-        }
-    }
     public BlockHit raycast(Vector3 origin, Vector3 direction, float distance)
     {
         direction = direction.normalized;
-        if (direction.x == 0)
+        float distTraveled = 0;
+        const float step = 0.1f;
+        while (distTraveled <= distance)
         {
-            direction.x = 0.0000001f;
-        }
-        if (direction.y == 0)
-        {
-            direction.y = 0.0000001f;
-        }
-        if (direction.z == 0)
-        {
-            direction.z = 0.0000001f;
-        }
-        
-        float distanceRemaining = distance;
-        Vector3 currEnd = origin;
-        List<Chunk> toRemesh = new List<Chunk>(2);
-
-        while (distanceRemaining >= 0)
-        {
-
-            Vector3Int hitCoords = new Vector3Int(Mathf.RoundToInt(currEnd.x), Mathf.RoundToInt(currEnd.y), Mathf.RoundToInt(currEnd.z));
-            setBlock(hitCoords, BlockType.sand);
-            Chunk c = getChunk(WorldToChunkCoords(hitCoords));
-            if (!toRemesh.Contains(c))
+            Vector3 testPoint = distTraveled * direction + origin;
+            distTraveled += step;
+            Vector3Int testWorldCoord = new Vector3Int(Mathf.RoundToInt(testPoint.x), Mathf.RoundToInt(testPoint.y), Mathf.RoundToInt(testPoint.z));
+            BlockData currBlock = getBlock(testWorldCoord);
+            if (currBlock.raycastable)
             {
-                toRemesh.Add(c);
+                return new BlockHit(currBlock, testWorldCoord);
             }
-            
-            BlockData hitBlock = getBlock(hitCoords);
-            if (hitBlock.fullCollision)
-            {
-                foreach (Chunk chunk in toRemesh)
-                {
-                    Task.Run(() => MeshGenerator.generateAndQueue(this, chunk));
-                    Debug.Log(chunk.worldCoords);
-                }
-                return new BlockHit(hitBlock, hitCoords);
-            }
-
-            Vector3 dests = new Vector3(Mathf.Floor(currEnd.x + 1), Mathf.Floor(currEnd.y + 1), Mathf.Floor(currEnd.z + 1));
-            if (direction.x < 0)
-            {
-                dests.x = Mathf.Ceil(currEnd.x - 1);
-            }
-            if (direction.y < 0)
-            {
-                dests.y = Mathf.Ceil(currEnd.y - 1);
-            }
-            if (direction.z < 0)
-            {
-                dests.z = Mathf.Ceil(currEnd.z - 1);
-            }
-            Vector3 delta = currEnd - dests;
-            Vector3 ratios = new Vector3(delta.x/direction.x,delta.y/direction.y,delta.z/direction.z);
-            if (ratios.x <= ratios.y && ratios.x <= ratios.z)
-            {
-                float r = delta.x / direction.x;
-                Vector3 travel = -new Vector3(delta.x, r*direction.y,r*direction.z);
-                currEnd.x += travel.x;
-                currEnd.y += travel.y;
-                currEnd.z += travel.z;
-                distanceRemaining -= travel.magnitude;
-            }
-            else if (ratios.y <= ratios.z)
-            {
-                //y is best
-                float r = delta.y / direction.y;
-                Vector3 travel = -new Vector3(r*direction.x, delta.y, r * direction.z);
-                currEnd.x += travel.x;
-                currEnd.y += travel.y;
-                currEnd.z += travel.z;
-                distanceRemaining -= travel.magnitude;
-            }
-            else
-            {
-                //z is best
-                float r = delta.z / direction.z;
-                Vector3 travel = -new Vector3(r * direction.x, r * direction.y, delta.z);
-                currEnd.x += travel.x;
-                currEnd.y += travel.y;
-                currEnd.z += travel.z;
-                distanceRemaining -= travel.magnitude;
-            }
-        }
-        foreach (Chunk c in toRemesh)
-        {
-            Task.Run(() => MeshGenerator.generateAndQueue(this, c));
-            Debug.Log(c.worldCoords);
         }
         return new BlockHit(null, Vector3Int.zero, false);
     }

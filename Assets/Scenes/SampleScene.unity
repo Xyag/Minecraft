@@ -1706,11 +1706,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 963194225}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 800e31c70d79db84383b3b8077026d12, type: 3}
+  m_Script: {fileID: 11500000, guid: ab84ec64ce7834a4da4f4af09dcd1e60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldManager: {fileID: 856809223}
+  Player: {fileID: 1345584382}
+  inventoryUI: {fileID: 779090497}
   blockHighlight: {fileID: 867433249}
+  worldManager: {fileID: 856809223}
 --- !u!114 &963194231
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2171,7 +2173,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   PanelObject: {fileID: 1153876553}
-  playerManager: {fileID: 1345584383}
+  playerManager: {fileID: 963194230}
   SliderUI: {fileID: 2029256541}
   LoadingText: {fileID: 1871727414}
   WorldLoad: {fileID: 856809225}
@@ -2188,7 +2190,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.8207547, g: 0.8207547, b: 0.8207547, a: 1}
+  m_Color: {r: 0.26415092, g: 0.26415092, b: 0.26415092, a: 0.59607846}
   m_RaycastTarget: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
@@ -2461,10 +2463,45 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 6311213787349334287, guid: dbe2890140a61894ab7bf15f0cecf1da,
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
-      propertyPath: m_Name
-      value: Player
+      propertyPath: JumpVelocity
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: MoveSpeed
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: MoveAccel
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: SprintSpeed
+      value: 30
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: FlyFrictionCoeff
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: flying
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: bulletSpeed
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334282, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
@@ -2536,16 +2573,6 @@ PrefabInstance:
       propertyPath: m_LocalScale.y
       value: 0.85
       objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334286, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: m_Constraints
-      value: 126
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334286, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: m_UseGravity
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334284, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
       propertyPath: m_ReceiveShadows
@@ -2566,45 +2593,20 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+    - target: {fileID: 6311213787349334286, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
-      propertyPath: JumpVelocity
-      value: 7
+      propertyPath: m_Constraints
+      value: 126
       objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+    - target: {fileID: 6311213787349334286, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
-      propertyPath: m_Enabled
-      value: 1
+      propertyPath: m_UseGravity
+      value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
+    - target: {fileID: 6311213787349334287, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
-      propertyPath: MoveSpeed
-      value: 15
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: MoveAccel
-      value: 25
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: SprintSpeed
-      value: 30
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: FlyFrictionCoeff
-      value: 0.1
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: flying
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
-        type: 3}
-      propertyPath: bulletSpeed
-      value: 60
+      propertyPath: m_Name
+      value: Player
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334327, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
@@ -2615,6 +2617,11 @@ PrefabInstance:
         type: 3}
       propertyPath: friction
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6311213787349334327, guid: dbe2890140a61894ab7bf15f0cecf1da,
+        type: 3}
+      propertyPath: checkCollision
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 0}
@@ -2634,7 +2641,6 @@ GameObject:
   - component: {fileID: 1345584385}
   - component: {fileID: 1345584384}
   - component: {fileID: 1345584382}
-  - component: {fileID: 1345584383}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -2655,7 +2661,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57113a2e72343bb449acd8ee42d6075f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  checkCollision: 1
+  checkCollision: 0
   velocity: {x: 0, y: 0, z: 0}
   acceleration: {x: 0, y: -9.8, z: 0}
   extents: {x: 0.4, y: 0.85, z: 0.4}
@@ -2663,20 +2669,6 @@ MonoBehaviour:
   hitDirections: 000000000000
   health: 0
   type: 0
---- !u!114 &1345584383
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1345584381}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ab84ec64ce7834a4da4f4af09dcd1e60, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Player: {fileID: 1345584382}
-  inventoryUI: {fileID: 779090497}
 --- !u!114 &1345584384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3485,7 +3477,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: bccc6c0d762dbb148a81833ce3334d7b, type: 3}
     m_FontSize: 28
     m_FontStyle: 0
     m_BestFit: 0
@@ -3778,13 +3770,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: bccc6c0d762dbb148a81833ce3334d7b, type: 3}
     m_FontSize: 48
     m_FontStyle: 0
     m_BestFit: 0

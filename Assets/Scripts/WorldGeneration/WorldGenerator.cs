@@ -148,7 +148,7 @@ public static class WorldGenerator
             {
                 for (int z = 0; z < zSize; z++)
                 {
-                    world.loadChunk(chunks[x, y, z]);
+                    world.createChunk(chunks[x, y, z]);
                 }
             }
         }
@@ -193,7 +193,7 @@ public static class WorldGenerator
         }
         foreach (var chunk in chunks)
         {
-            world.loadChunk(chunk);
+            world.createChunk(chunk);
         }
         return chunks;
     }
