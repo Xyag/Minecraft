@@ -85,73 +85,18 @@ public static class WorldGenerator
             surfaceDepth = 2,
             snowHeight = 100,
         };
+        var cactusGenerator = new CactusGenerationLayer
+        {
+            cactusDensity = 1,
+            cactusDensityConstant = 1,
+        };
 
-        generationLayers.Add(mountainsGenerator);
+        generationLayers.Add(desertGenerator);
+        //generationLayers.Add(desertGenerator);
+        generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
         //generationLayers.Add(caveGenerator);
-    }
-    public static async Task generateRegion(World world, Vector3Int startChunk, int xSize, int ySize, int zSize)
-    {
-        //generates the block data asynchronosly using multiThreadPasses, then synchronously using singleThreadPasses, then loads the chunks synchronously, then generates the meshes asyncronously.
-        List<Task<Chunk>> genTasks = new List<Task<Chunk>>(xSize * ySize * zSize);
-        Chunk[,,] chunks = new Chunk[xSize, ySize, zSize];
-
-        //initialize chunks
-        for (int x = 0; x < xSize; x++)
-        {
-            for (int y = 0; y < ySize; y++)
-            {
-                for (int z = 0; z < zSize; z++)
-                {
-                    chunks[x, y, z] = world.getChunk(new Vector3Int(x + startChunk.x, y + startChunk.y, z + startChunk.z));
-                }
-            }
-        }
-        //generating the world layer by layer
-        for (int i = 0; i < generationLayers.Count; i++)
-        {
-            for (int x = 0; x < xSize; x++)
-            {
-                for (int y = 0; y < ySize; y++)
-                {
-                    for (int z = 0; z < zSize; z++)
-                    {
-                        if (generationLayers[i].isSingleThreaded())
-                        {
-                            generationLayers[i].generateChunk(chunks[x, y, z], world);
-                        }
-                        else
-                        {
-                            Chunk chunk = chunks[x, y, z];
-                            genTasks.Add(Task.Run(() => generationLayers[i].generateChunk(chunk, world)));
-                        }
-                    }
-                }
-            }
-            if (!generationLayers[i].isSingleThreaded())
-            {
-                //process the chunks as the come in from the multiple threads.
-                while (genTasks.Count > 0)
-                {
-                    var finishedTask = await Task.WhenAny(genTasks);
-                    genTasks.Remove(finishedTask);
-                    Vector3Int listCoords = finishedTask.Result.chunkCoords - startChunk;
-                    chunks[listCoords.x, listCoords.y, listCoords.z] = finishedTask.Result;
-                }
-            }
-        }
-        //we send all the finished chunks to the world to be loaded
-        for (int x = 0; x < xSize; x++)
-        {
-            for (int y = ySize - 1; y >= 0; y--) //we want to load the top layer first usually so stuff doesn't fall through the ground.
-            {
-                for (int z = 0; z < zSize; z++)
-                {
-                    world.createChunk(chunks[x, y, z]);
-                }
-            }
-        }
     }
     public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
     {
@@ -159,11 +104,13 @@ public static class WorldGenerator
         List<Chunk> chunks = new List<Chunk>(dests.Count);
         for (int i = 0; i < dests.Count; i++)
         {
-            chunks.Add(world.getChunk(dests[i]));
+            Chunk c = world.getChunk(dests[i]);
+            world.createChunk(c);
+            chunks.Add(c);
         }
         for (int i = 0; i < generationLayers.Count; i++)
         {
-
+            
             if (generationLayers[i].isSingleThreaded())
             {
                 for (int n = 0; n < chunks.Count; n++)
@@ -173,15 +120,13 @@ public static class WorldGenerator
             }
             else
             {
+                genTasks.Clear();
                 for (int n = 0; n < chunks.Count; n++)
                 {
                     Chunk chunk = chunks[n];
                     int index = n;
                     genTasks.Add(Task.Run(() => (index, generationLayers[i].generateChunk(chunk, world))));
                 }
-            }
-            if (!generationLayers[i].isSingleThreaded())
-            {
                 //process the chunks as the come in from the multiple threads.
                 while (genTasks.Count > 0)
                 {
@@ -190,10 +135,7 @@ public static class WorldGenerator
                     chunks[finishedTask.Result.Item1] = finishedTask.Result.Item2;
                 }
             }
-        }
-        foreach (var chunk in chunks)
-        {
-            world.createChunk(chunk);
+            
         }
         return chunks;
     }

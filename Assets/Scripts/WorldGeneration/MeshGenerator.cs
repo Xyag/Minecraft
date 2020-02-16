@@ -48,6 +48,8 @@ public static class MeshGenerator
     }
     public static void meshChunkBlockChanged(Chunk chunk, Vector3Int blockCoords, World world)
     {
+        if (chunk == null)
+            return;
         Task.Run(() =>
         {
             Vector3Int chunkCoords = chunk.chunkCoords;
@@ -98,6 +100,8 @@ public static class MeshGenerator
     }
     public static void spawnChunk(Chunk chunk)
     {
+        if (chunk == null)
+            return;
         var data = chunk.renderData;
         var chunkObject = chunk.gameObject;
         if (chunkObject == null)
@@ -138,41 +142,35 @@ public static class MeshGenerator
     }
     public static void remeshChunk(World world, Chunk chunk, bool alertNeighbors = true)
     {
-        if (chunk != null)
+        if (chunk == null)
+            return;
+        if (chunk.blocks == null)
         {
-            if (chunk.blocks == null)
-            {
-                return;
-            }
-            if (chunk.gameObject == null)
-            {
-                spawnChunk(generateMesh(world, chunk));
-            }
-            else
-            {
-                MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
-                MeshData data = generateMesh(world, chunk).renderData;
-                mf.mesh.Clear();
-                mf.mesh.SetVertices(data.vertices);
-                mf.mesh.SetTriangles(data.triangles, 0);
-                mf.mesh.SetNormals(data.normals);
-                mf.mesh.SetUVs(0, data.uvs);
-                
-            }
-            if (alertNeighbors)
-            {
-                var neighbors = world.getNeighboringChunks(chunk.chunkCoords);
-                foreach (var c in neighbors)
-                {
-                    remeshChunk(world, c, false);
-                }
-            }
+            return;
+        }
+        if (chunk.gameObject == null)
+        {
+            spawnChunk(generateMesh(world, chunk));
         }
         else
         {
-            UnityEngine.Debug.LogError("null chunk");
-        }
+            MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
+            MeshData data = generateMesh(world, chunk).renderData;
+            mf.mesh.Clear();
+            mf.mesh.SetVertices(data.vertices);
+            mf.mesh.SetTriangles(data.triangles, 0);
+            mf.mesh.SetNormals(data.normals);
+            mf.mesh.SetUVs(0, data.uvs);
 
+        }
+        if (alertNeighbors)
+        {
+            var neighbors = world.getNeighboringChunks(chunk.chunkCoords);
+            foreach (var c in neighbors)
+            {
+                remeshChunk(world, c, false);
+            }
+        }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void posXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -290,6 +288,8 @@ public static class MeshGenerator
 
     public static void generateAndQueue(World world, Chunk chunk)
     {
+        if (chunk == null)
+            return;
         generateMesh(world, chunk);
         if (chunk.renderData != null)
         {
@@ -301,7 +301,7 @@ public static class MeshGenerator
     }
     public static Chunk generateMesh(World world, Chunk chunk)
     {
-        if (chunk.blocks == null)
+        if (chunk == null || chunk.blocks == null)
         {
             return chunk;
         }

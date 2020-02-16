@@ -12,7 +12,6 @@ public class TextureArrayCreator : EditorWindow
     public static void ShowWindow()
     {
         EditorWindow.GetWindow(typeof(TextureArrayCreator));
-
     }
 
     void OnGUI()

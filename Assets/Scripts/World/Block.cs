@@ -17,9 +17,10 @@ public struct Block
         new BlockData { type = BlockType.sand, opaque = true, fullCollision = false, texture = new BlockTexture(8)},
         new TNTBlockData { type = BlockType.tnt, opaque = true, fullCollision = true, texture = new BlockTexture(9),interactable = true, explosionStrength = 16, fuseLength = 2},
         new BlockData { type = BlockType.snow, opaque = true, fullCollision = true, texture = new BlockTexture(10)},
+        new BlockData { type = BlockType.cactus, opaque = true, fullCollision = true, texture = new BlockTexture(11,12,11,11,12,11)},
+        new BlockData { type = BlockType.glass, opaque = false, fullCollision = true, texture = new BlockTexture(13)}
     };
 
-    public const int TEXTURE_SIZE = 4;
     public BlockType type;
     public Block(BlockType type)
     {
@@ -39,5 +40,7 @@ public enum BlockType : short
     leaves,
     sand,
     tnt,
-    snow
+    snow,
+    cactus,
+    glass
 }

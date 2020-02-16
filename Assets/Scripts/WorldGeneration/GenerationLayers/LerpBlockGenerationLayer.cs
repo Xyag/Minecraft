@@ -15,6 +15,8 @@ public class LerpBlockGenerationLayer : IGenerationLayer
     }
     public Chunk generateChunk(Chunk chunk, World world)
     {
+        if (chunk == null || chunk.blocks == null)
+            return chunk;
         float slope = 1.0f / (maxHeight - minHeight);
         for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
         {

@@ -30,7 +30,6 @@ public class PlayerManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             worldManager.world.setBlockAndMesh(hit.coords, BlockType.empty);
-            Debug.Log(hit.coords);
         }
         if (Input.GetMouseButtonDown(1))
         {

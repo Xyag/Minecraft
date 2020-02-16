@@ -45,9 +45,10 @@ public class PlayerMovement : MonoBehaviour
         sprinting = Input.GetKey(KeyCode.LeftShift);
         //x of this is the right direction, y of this is the forward direction
         Vector2 moveVector = new Vector2(Time.deltaTime * MoveAccel * Input.GetAxis("Horizontal"), Time.deltaTime * MoveAccel * Input.GetAxis("Vertical"));
-        Vector3 localVelocity = transform.worldToLocalMatrix * playerPhysics.velocity;
-        Vector3 worldMoveForward = transform.localToWorldMatrix * new Vector3(0, 0, moveVector.y);
-        Vector3 worldMoveRight = transform.localToWorldMatrix * new Vector3(moveVector.x, 0, 0);
+
+        Vector3 localVelocity = transform.InverseTransformVector(playerPhysics.velocity);
+        Vector3 worldMoveForward = transform.TransformVector(new Vector3(0, 0, moveVector.y));
+        Vector3 worldMoveRight = transform.TransformVector(new Vector3(moveVector.x, 0, 0));
         float maxSpeed = sprinting ? SprintSpeed : MoveSpeed;
 
         if ((moveVector.x > 0 && localVelocity.x < maxSpeed) || (localVelocity.x > maxSpeed && moveVector.x < 0))
@@ -69,22 +70,29 @@ public class PlayerMovement : MonoBehaviour
         }
         if (flying)
         {
-            if (Input.GetKey(KeyCode.Space) && playerPhysics.velocity.y < MoveSpeed)
+            if (Input.GetKey(KeyCode.Space))
             {
-                playerPhysics.acceleration.y = FlyVerticalAccel;
+                if (playerPhysics.velocity.y < MoveSpeed)
+                    playerPhysics.velocity.y += FlyVerticalAccel;
             }
-            else if (Input.GetKey(KeyCode.LeftControl) && playerPhysics.velocity.y > -MoveSpeed)
+            else if (Input.GetKey(KeyCode.LeftControl))
             {
-                playerPhysics.acceleration.y = -FlyVerticalAccel;
+                if (playerPhysics.velocity.y > -MoveSpeed)
+                    playerPhysics.velocity.y -= FlyVerticalAccel;
             }
             else
             {
                 playerPhysics.acceleration.y = 0;
                 playerPhysics.velocity.y -= playerPhysics.velocity.y * FlyFrictionCoeff;
-                if (worldMoveRight.x == 0) playerPhysics.velocity.x -= playerPhysics.velocity.x * FlyFrictionCoeff;
-                if (worldMoveForward.z == 0) playerPhysics.velocity.z -= playerPhysics.velocity.z * FlyFrictionCoeff;
-
-                if (playerPhysics.velocity.sqrMagnitude < 0.01f) playerPhysics.velocity = Vector3.zero;
+                Vector3 normalizedLV = localVelocity.normalized;
+                if (moveVector.x == 0)
+                {
+                    playerPhysics.velocity -= transform.right * normalizedLV.x * FlyFrictionCoeff;
+                }
+                if (moveVector.y == 0)
+                {
+                    playerPhysics.velocity -= transform.forward * normalizedLV.z * FlyFrictionCoeff;
+                }
             }
         }
         if (jumpTimer > JumpTimeout && Input.GetKeyDown(KeyCode.Space) && playerPhysics.hitDirections[(int)Direction.NegY])

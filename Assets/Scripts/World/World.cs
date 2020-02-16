@@ -320,7 +320,7 @@ public class World
         }
         return getBlock(chunkCoords, blockCoords);
     }
-    //returns empty if the chunk doesn't exist
+    //returns chunk_border if the chunk doesn't exist
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public BlockData getBlock(Vector3Int chunkCoords, Vector3Int blockCoords)
     {

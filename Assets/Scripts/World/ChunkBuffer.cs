@@ -12,6 +12,8 @@ public class ChunkBuffer
     {
         lock (finishedMeshes)
         {
+            if (finishedMeshes.Count > 3000)
+                Debug.Log(finishedMeshes.Count);
             finishedMeshes.Add(data);
         }
     }
