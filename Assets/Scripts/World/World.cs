@@ -8,11 +8,13 @@ public class World
     const float EXPLOSION_PARTICLES_SCALE = 0.125f;
 
     public ChunkBuffer unloadChunkBuffer = new ChunkBuffer(1000);
-    public Vector3Int worldRadius = new Vector3Int(5, 5, 5);
+    
     public Dictionary<Vector3Int, Chunk> loadedChunks = new Dictionary<Vector3Int, Chunk>();
     public Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public List<Entity> loadedEntities = new List<Entity>();
-    public string worldPath;
+    public readonly string savePath;
+    public readonly Vector3Int worldRadius;
+    private readonly ChunkSerializer chunkSerializer;
     public GameObject explosionParticles
     {
         set
@@ -21,10 +23,33 @@ public class World
         }
     }
 
+    public World(string savePath, GameObject explosionParticles)
+    {
+        this.savePath = savePath;
+        chunkSerializer = new ChunkSerializer(savePath);
+        this.explosionParticles = explosionParticles;
+        worldRadius = new Vector3Int(3, 3, 3);
+    }
+    public void saveAll()
+    {
+        if (!Directory.Exists(savePath))
+        {
+            Directory.CreateDirectory(savePath);
+        }
+        lock (loadedChunks)
+        {
+            foreach(var chunk in loadedChunks.Values)
+            {
+                chunkSerializer.writeChunk(chunk);
+            }
+        }
+    }
+
+
 
     private System.Diagnostics.Stopwatch unloadStopwatch = new System.Diagnostics.Stopwatch();
     private Pool<GameObject> explosionParticlesPool;
-    public bool chunkInWorld(Vector3Int coords)
+    public bool chunkInBounds(Vector3Int coords)
     {
         return (-worldRadius.x < coords.x && coords.x < worldRadius.x) && (-worldRadius.y < coords.y && coords.y < worldRadius.y) && (-worldRadius.z < coords.z && coords.z < worldRadius.z);
     }
@@ -69,7 +94,9 @@ public class World
                 {
                     if (x * x + y * y + z * z <= (csize + 1) * (csize + 1))
                     {
-                        remeshQueue.Add(getChunk(chunkPos + new Vector3Int(x, y, z)));
+                        var chunk = getChunk(chunkPos + new Vector3Int(x, y, z));
+                        if (chunk != null)
+                            remeshQueue.Add(chunk);
                     }
                 }
             }
@@ -103,43 +130,36 @@ public class World
             }
         }
     }
-    //returns false if the chunks is valid and it needs to be generated
+    //returns true if the chunk successfully loaded (so it needs to be meshed)
     public bool loadChunkFromFile(Vector3Int coords)
     {
-        if (!chunkInWorld(coords))
-            return true;
+        if (!chunkInBounds(coords))
+            return false;
         lock (loadedChunks)
         {
             if (loadedChunks.ContainsKey(coords))
             {
                 Debug.Log("loading already loaded chunk");
-                return true;
+                return false;
             }
             else
             {
-                string path = worldPath + coords.ToString();
-                if (File.Exists(path))
+                Chunk read = chunkSerializer.readChunk(coords);
+                if (read != null)
                 {
-                    createChunk(readChunkFile(path));
-                    return true;
+                    loadedChunks.Add(coords, read);
                 }
-                else
-                    return false;
             }
         }
-    }
-    public Chunk readChunkFile(string path)
-    {
-        return null;
+        return false;
     }
     public void createChunk(Chunk c)
     {
-        if (!chunkInWorld(c.chunkCoords))
+        if (!chunkInBounds(c.chunkCoords))
             return;
         lock (loadedChunks)
         {
-            Chunk temp;
-            if (!loadedChunks.TryGetValue(c.chunkCoords, out temp))
+            if (!loadedChunks.TryGetValue(c.chunkCoords, out Chunk temp))
                 loadedChunks.Add(c.chunkCoords, c);
             else
                 Debug.Log("creating already loaded chunk");
@@ -156,30 +176,57 @@ public class World
             }
             loadedChunks.Remove(chunk.chunkCoords);
         }
+        lock (chunkSerializer)
+        {
+            chunkSerializer.writeChunk(chunk);
+        }
     }
     public void unloadChunk(Vector3Int coords)
     {
+        Chunk chunk = null;
         lock (loadedChunks)
         {
-            Chunk chunk = loadedChunks[coords];
-            if (chunk.gameObject != null)
-                chunk.gameObject.SetActive(false);
-            loadedChunks.Remove(coords);
+            chunk = loadedChunks[coords];
+        }
+        unloadChunk(chunk);
+    }
+    public async Task getChunks(List<Vector3Int> coords, List<Chunk> output)
+    {
+        List<Vector3Int> toGenerate = new List<Vector3Int>();
+        foreach (var pos in coords)
+        {
+            Chunk temp = getChunk(pos);
+            if (temp == null)
+                toGenerate.Add(pos);
+            else
+                output.Add(temp);
+        }
+        List<Chunk> generated = await WorldGenerator.generateList(this, toGenerate);
+        foreach (Chunk c in generated)
+        {
+            output.Add(c);
         }
     }
     public Chunk getChunk(Vector3Int chunkCoords)
     {
-        if (!chunkInWorld(chunkCoords))
-            return null;
-        Chunk chunk;
-        if (loadedChunks.TryGetValue(chunkCoords, out chunk))
+        lock (loadedChunks)
         {
-            return chunk;
-        }
-        else
-        {
-            chunk = new Chunk(null, chunkCoords);
-            return chunk;
+            if (!chunkInBounds(chunkCoords))
+                return null;
+            Chunk chunk;
+            if (loadedChunks.TryGetValue(chunkCoords, out chunk))
+            {
+                return chunk;
+            }
+            else if ((chunk = chunkSerializer.readChunk(chunkCoords)) != null)
+            {
+                loadedChunks.Add(chunkCoords, chunk);
+                return chunk;
+            }
+            else
+            {
+                return null;
+            }
         }
     }
     public Vector3Int WorldToChunkCoords(Vector3 worldCoords)

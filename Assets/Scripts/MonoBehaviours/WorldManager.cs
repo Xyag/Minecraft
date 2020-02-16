@@ -29,11 +29,7 @@ public class WorldManager : MonoBehaviour
         MeshGenerator.chunkPool = Pool<GameObject>.createGameObjectPool(EmptyChunkPrefab,3000); //just picking 3000 cause that's probably more chunks than we need
         MeshGenerator.chunkPhysMaterial = ChunkPhysicMaterial;
 
-        world = new World
-        {
-            explosionParticles = ExplosionParticles
-        };
-
+        world = new World(Application.persistentDataPath + "/world/", ExplosionParticles);
         var playerEntity = Player.GetComponent<Entity>();
         playerEntity.initialize(world);
         world.loadedEntities.Add(playerEntity);
@@ -52,7 +48,10 @@ public class WorldManager : MonoBehaviour
         }
 
         cursorInventory.items = new Item[1];
+
+        
     }
+
     public void Update()
     {
         frameTimer.Restart();

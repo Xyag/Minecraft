@@ -13,32 +13,68 @@ public class WorldLoader : MonoBehaviour
     public int LoadDist = 5;
     public int UnloadDist = 7;
     public int toLoad;
+    public float saveInterval = 10;
     private List<Vector3Int> loadBuffer;
     private List<Chunk> unloadBuffer;
     private Vector3Int oldPlayerCoords;
     private Thread checkingThread;
+    private Thread saveThread;
+    private List<Chunk> spawnBuffer;
+    private float saveTimer = 0;
     private void Start()
     {
         loadBuffer = new List<Vector3Int>(13 * LoadDist * LoadDist); //should be bigger than needed: this is more than the surface area of the sphere
         unloadBuffer = new List<Chunk>(13 * UnloadDist * UnloadDist);
+        spawnBuffer = new List<Chunk>();
         oldPlayerCoords = world.WorldToChunkCoords(player.transform.position);
 
         checkingThread = new Thread(new ParameterizedThreadStart(checkChunkLoading));
         checkingThread.Start(oldPlayerCoords);
+        saveThread = null;
+        saveTimer = 0;
     }
-
     public void Update()
     {
         Vector3Int playerChunkCoords = world.WorldToChunkCoords(player.transform.position);
         if (playerChunkCoords != oldPlayerCoords)
         {
-            //doing this so we can check off the main thread and make sure there is only one thread doing the checking.
-            if (!checkingThread.IsAlive)
-                checkingThread.Abort();
-            checkingThread = new Thread(new ParameterizedThreadStart(checkChunkLoading));
-            checkingThread.Start(playerChunkCoords);
+            checkOnThread(playerChunkCoords);
         }
         oldPlayerCoords = playerChunkCoords;
+
+        saveTimer += Time.deltaTime;
+        if (saveTimer > saveInterval)
+        {
+            saveOnThread();
+        }
+    }
+    public void OnApplicationQuit()
+    {
+        //doing this on the main thread at the end to make sure it completes.
+        if (saveThread != null && saveThread.IsAlive)
+        {
+            saveThread.Abort();
+        }
+        world.saveAll();
+    }
+    private void saveOnThread()
+    {
+        saveTimer = 0;
+        if (saveThread != null && saveThread.IsAlive)
+        {
+            saveThread.Abort();
+        }
+        saveThread = new Thread(new ThreadStart(world.saveAll));
+        saveThread.Start();
+        Debug.Log("saved");
+    }
+    private void checkOnThread(Vector3Int playerChunkCoords)
+    {
+        //doing this so we can check off the main thread and make sure there is only one thread doing the checking.
+        if (checkingThread.IsAlive)
+            checkingThread.Abort();
+        checkingThread = new Thread(new ParameterizedThreadStart(checkChunkLoading));
+        checkingThread.Start(playerChunkCoords);
     }
     //how do we avoid putting a chunk in the unload buffer if it's already there? is the best solution really to use a contains on every fucking chunk?
     //but yeah we need to fix this
@@ -67,7 +103,7 @@ public class WorldLoader : MonoBehaviour
                 {
                     Vector3Int coords = playerChunkCoords + new Vector3Int(x, y, z);
                     int sqrDist = x * x + y * y + z * z;
-                    if (world.chunkInWorld(coords) && sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
+                    if (world.chunkInBounds(coords) && sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
                     {
                         loadBuffer.Add(coords);
                     }
@@ -80,7 +116,8 @@ public class WorldLoader : MonoBehaviour
 
     private async void loadAll(List<Vector3Int> pos)
     {
-        List<Chunk> chunks = await WorldGenerator.generateList(world, pos);
-        MeshGenerator.spawnAll(chunks, world);
+        spawnBuffer.Clear();
+        await world.getChunks(pos, spawnBuffer);
+        MeshGenerator.spawnAll(spawnBuffer, world);
     }
 }

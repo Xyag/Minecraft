@@ -105,8 +105,12 @@ public static class WorldGenerator
         for (int i = 0; i < dests.Count; i++)
         {
             Chunk c = world.getChunk(dests[i]);
-            world.createChunk(c);
-            chunks.Add(c);
+            if (c == null)
+            {
+                c = new Chunk(null, dests[i]);
+                world.createChunk(c);
+                chunks.Add(c);
+            }
         }
         for (int i = 0; i < generationLayers.Count; i++)
         {

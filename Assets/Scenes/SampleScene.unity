@@ -1336,6 +1336,7 @@ MonoBehaviour:
   LoadDist: 5
   UnloadDist: 6
   toLoad: 0
+  saveInterval: 10
 --- !u!1 &863493401
 GameObject:
   m_ObjectHideFlags: 0
