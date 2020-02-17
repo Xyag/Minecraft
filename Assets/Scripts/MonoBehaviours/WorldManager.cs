@@ -29,7 +29,7 @@ public class WorldManager : MonoBehaviour
         MeshGenerator.chunkPool = Pool<GameObject>.createGameObjectPool(EmptyChunkPrefab,3000); //just picking 3000 cause that's probably more chunks than we need
         MeshGenerator.chunkPhysMaterial = ChunkPhysicMaterial;
 
-        world = new World(Application.persistentDataPath + "/world/", ExplosionParticles);
+        world = new World(Application.persistentDataPath + "/" + SceneData.targetWorld + "/", ExplosionParticles);
         var playerEntity = Player.GetComponent<Entity>();
         playerEntity.initialize(world);
         world.loadedEntities.Add(playerEntity);

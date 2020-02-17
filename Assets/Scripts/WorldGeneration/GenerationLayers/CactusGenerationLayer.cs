@@ -25,7 +25,6 @@ public class CactusGenerationLayer : IGenerationLayer
                 int start;
                 bool set = false;
                 Vector2Int cactusCoords = new Vector2Int((int)(Chunk.CHUNK_SIZE*(0.5f+0.5f*noise.GetSimplex(chunk.worldCoords.x,chunk.worldCoords.y,chunk.worldCoords.z+c))), (int)(Chunk.CHUNK_SIZE * (0.5f+0.5f*noise.GetSimplex(chunk.worldCoords.x+c+123, chunk.worldCoords.y, chunk.worldCoords.z))));
-                Debug.Log(cactusCoords);
                 for (start = Chunk.CHUNK_SIZE - 1; start > 0; start--)
                 {
                     if (chunk.blocks[cactusCoords.x, start, cactusCoords.y].type != BlockType.empty && chunk.blocks[cactusCoords.x, start, cactusCoords.y].type != BlockType.chunk_border)
@@ -43,7 +42,6 @@ public class CactusGenerationLayer : IGenerationLayer
                         world.setBlock(new Vector3Int(startWorldCoords.x, i, startWorldCoords.z), BlockType.cactus);
                         if (startWorldCoords.y + height - i == armOffset)
                         {
-                            Debug.Log("arms");
                             bool zArms = 0.5f + 0.5f * noise.GetSimplex(startWorldCoords.x, 1, startWorldCoords.y) > 0.5f; //50% chance for arms to be orientated on x or z axis
                             if (zArms)
                             {
