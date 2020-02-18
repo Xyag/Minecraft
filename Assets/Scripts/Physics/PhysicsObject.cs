@@ -27,8 +27,9 @@ public class PhysicsObject : MonoBehaviour
     }
     public virtual void Update()
     {
+        physicsUpdate();
     }
-    public virtual void LateUpdate()
+    public void physicsUpdate()
     {
         if (checkCollision)
         {
@@ -54,16 +55,17 @@ public class PhysicsObject : MonoBehaviour
         {
             velocity.z = 0;
         }
-
         transform.position += velocity * Time.deltaTime;
         velocity += acceleration * Time.deltaTime;
     }
-    protected virtual void onCollision()
+    //called after the collision is resloved.
+    protected virtual void onCollision(Vector3 oldVelocity)
     {
 
     }
     protected void doCollision()
     {
+        Vector3 oldV = velocity;
         for (int i = 0; i < hitDirections.Length; i++)
         {
             hitDirections[i] = false;
@@ -84,10 +86,9 @@ public class PhysicsObject : MonoBehaviour
                 BoundingBox box = new BoundingBox(postPosition + new Vector3(extents.x, -extents.y + (float)y, extents.z), new Vector3(extents.x, BBOX_THICKNESS, extents.z));
                 if (box.intersectsBlock(world))
                 {
-                    postPosition.y = Mathf.RoundToInt(postPosition.y+(float)y);
+                    //postPosition.y = Mathf.RoundToInt(postPosition.y+(float)y);
                     velocity.y = 0;
                     hitDirections[(int)Direction.NegY] = true;
-                    onCollision();
                     break;
                 }
             }
@@ -100,10 +101,9 @@ public class PhysicsObject : MonoBehaviour
                 BoundingBox box = new BoundingBox(postPosition + new Vector3(extents.x, extents.y + (float)y, extents.z), new Vector3(extents.x, BBOX_THICKNESS, extents.z));
                 if (box.intersectsBlock(world))
                 {
-                    postPosition.y = Mathf.RoundToInt(postPosition.y + (float)y);
+                    //postPosition.y = Mathf.RoundToInt(postPosition.y + (float)y);
                     velocity.y = 0;
                     hitDirections[(int)Direction.PosY] = true;
-                    onCollision();
                     break;
                 }
             }
@@ -118,26 +118,25 @@ public class PhysicsObject : MonoBehaviour
                 BoundingBox box = new BoundingBox(postPosition + new Vector3(-extents.x + (float)x, extents.y, extents.z), new Vector3(BBOX_THICKNESS, extents.y, extents.z));
                 if (box.intersectsBlock(world))
                 {
-                    postPosition.x = Mathf.RoundToInt(postPosition.x + (float)x);
+                    //postPosition.x = Mathf.RoundToInt(postPosition.x + (float)x);
                     velocity.x = 0;
                     hitDirections[(int)Direction.NegX] = true;
-                    onCollision();
                     break;
                 }
             }
         }
         else
         {
+
             //+v
             for (int x = 0; x < Mathf.CeilToInt(frameVelocity.x); x++)
             {
                 BoundingBox box = new BoundingBox(postPosition + new Vector3(extents.x + (float)x, extents.y, extents.z), new Vector3(BBOX_THICKNESS, extents.y, extents.z));
                 if (box.intersectsBlock(world))
                 {
-                    postPosition.x = Mathf.RoundToInt(postPosition.x + (float)x);
+                    //postPosition.x = Mathf.RoundToInt(postPosition.x + (float)x);
                     velocity.x = 0;
                     hitDirections[(int)Direction.PosX] = true;
-                    onCollision();
                     break;
                 }
             }
@@ -152,10 +151,9 @@ public class PhysicsObject : MonoBehaviour
                 BoundingBox box = new BoundingBox(postPosition + new Vector3(extents.x, extents.y, -extents.z+(float)z), new Vector3(extents.x, extents.y, BBOX_THICKNESS));
                 if (box.intersectsBlock(world))
                 {
-                    postPosition.x = Mathf.RoundToInt(postPosition.z + (float)z);
+                    //postPosition.z = Mathf.RoundToInt(postPosition.z + (float)z);
                     velocity.z = 0;
                     hitDirections[(int)Direction.NegZ] = true;
-                    onCollision();
                     break;
                 }
             }
@@ -168,16 +166,24 @@ public class PhysicsObject : MonoBehaviour
                 BoundingBox box = new BoundingBox(postPosition + new Vector3(extents.x, extents.y, extents.z + (float)z), new Vector3(extents.x, extents.y, BBOX_THICKNESS));
                 if (box.intersectsBlock(world))
                 {
-                    postPosition.x = Mathf.RoundToInt(postPosition.z + (float)z);
+                    //postPosition.z = Mathf.RoundToInt(postPosition.z + (float)z);
                     velocity.z = 0;
                     hitDirections[(int)Direction.PosZ] = true;
-                    onCollision();
                     break;
                 }
             }
         }
-
         transform.position = postPosition;
+
+
+        for (int i = 0; i < hitDirections.Length; i++)
+        {
+            if (hitDirections[i])
+            {
+                onCollision(oldV);
+                return;
+            }
+        }
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]

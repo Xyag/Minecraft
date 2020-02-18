@@ -14,16 +14,17 @@ public class Bullet : Entity
         timer += Time.deltaTime;
         if (timer > lifetime)
         {
-            Debug.Log("no collision");
-            Disable();
+            Explode();
         }
     }
-    protected override void onCollision()
+    public void Explode()
     {
-        base.onCollision();
-        Debug.Log("collided");
         world.createExplosion(explosionStrength, new Vector3Int((int)transform.position.x, (int)transform.position.y, (int)transform.position.z));
         Disable();
+    }
+    protected override void onCollision(Vector3 oldV)
+    {
+        Explode();
     }
     public override void initialize(World world)
     {

@@ -10,6 +10,7 @@ public static class MeshGenerator
 {
     public static PhysicMaterial chunkPhysMaterial;
     public static ChunkBuffer finishedMeshes = new ChunkBuffer(3000); //3000 cause that's probably more than we need.
+    public static List<Vector3Int> currentlyMeshing = new List<Vector3Int>();
     public static Pool<GameObject> chunkPool;
     private static readonly Stopwatch stopwatch = new Stopwatch();
 
@@ -32,10 +33,8 @@ public static class MeshGenerator
     }
     public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
-        //UnityEngine.Debug.Log("spawning all");
         foreach (var item in collection)
         {
-            //UnityEngine.Debug.Log("generating chunk");
             Task.Run(() => generateAndQueue(world, item));
         }
     }
@@ -185,7 +184,7 @@ public static class MeshGenerator
         normals.Add(new Vector3(1, 0, 0));
         normals.Add(new Vector3(1, 0, 0));
 
-        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosX, new Vector2(size.y, size.x));
+        setUpTrisUVs(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosX, new Vector2(size.y, size.x));
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void negXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -200,7 +199,7 @@ public static class MeshGenerator
         normals.Add(new Vector3(-1, 0, 0));
         normals.Add(new Vector3(-1, 0, 0));
 
-        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegX, new Vector2(size.y, size.x));
+        setUpTrisUVs(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegX, new Vector2(size.y, size.x));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -216,7 +215,7 @@ public static class MeshGenerator
         normals.Add(new Vector3(0, 1, 0));
         normals.Add(new Vector3(0, 1, 0));
 
-        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosY, new Vector2(size.y, size.x));
+        setUpTrisUVs(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosY, new Vector2(size.y, size.x));
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void negYFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -231,7 +230,7 @@ public static class MeshGenerator
         normals.Add(new Vector3(0, -1, 0));
         normals.Add(new Vector3(0, -1, 0));
 
-        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegY, new Vector2(size.y, size.x));
+        setUpTrisUVs(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegY, new Vector2(size.y, size.x));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -247,7 +246,7 @@ public static class MeshGenerator
         normals.Add(new Vector3(0, 0, 1));
         normals.Add(new Vector3(0, 0, 1));
 
-        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosZ, size);
+        setUpTrisUVs(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.PosZ, size);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -263,12 +262,12 @@ public static class MeshGenerator
         normals.Add(new Vector3(0, 0, -1));
         normals.Add(new Vector3(0, 0, -1));
 
-        setUpTrisNorms(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegZ, size);
+        setUpTrisUVs(faceIndex, triangles, uvs, Block.blockTypes[(int)block].texture.NegZ, size);
     }
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void setUpTrisNorms(int faceIndex, List<int> triangles, List<Vector3> uvs, int texId, Vector2 size)
+    public static void setUpTrisUVs(int faceIndex, List<int> triangles, List<Vector3> uvs, int texId, Vector2 size)
     {
         int vertexStart = faceIndex * 4;
         triangles.Add(vertexStart);
@@ -290,6 +289,14 @@ public static class MeshGenerator
     {
         if (chunk == null)
             return;
+        lock (currentlyMeshing)
+        {
+            if (currentlyMeshing.Contains(chunk.chunkCoords))
+            {
+                return;
+            }
+            currentlyMeshing.Add(chunk.chunkCoords);
+        }
         generateMesh(world, chunk);
         if (chunk.renderData != null)
         {
@@ -297,6 +304,10 @@ public static class MeshGenerator
             {
                 finishedMeshes.Push(chunk);
             }
+        }
+        lock (currentlyMeshing)
+        {
+            currentlyMeshing.Remove(chunk.chunkCoords);
         }
     }
     public static Chunk generateMesh(World world, Chunk chunk)

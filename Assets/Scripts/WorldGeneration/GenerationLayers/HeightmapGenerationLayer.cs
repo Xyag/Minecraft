@@ -9,6 +9,7 @@ public class HeightmapGenerationLayer : IGenerationLayer
     public BlockType underGroundBlock;
     public int heightOffset = 0;
     public int midDepth = 3;
+    public int waterLevel = 20;
     public bool isSingleThreaded()
     {
         return false;
@@ -22,7 +23,7 @@ public class HeightmapGenerationLayer : IGenerationLayer
             for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
             {
                 int height = heightOffset + (int)heightNoise.sample(x + chunk.worldCoords.x, z + chunk.worldCoords.z, 0);
-                if (blocks == null && chunk.worldCoords.y <= height)
+                if (blocks == null && (chunk.worldCoords.y <= height || chunk.worldCoords.y <= waterLevel))
                 {
                     chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
                     blocks = chunk.blocks;
@@ -32,7 +33,11 @@ public class HeightmapGenerationLayer : IGenerationLayer
                 {
                     for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                     {
-                        if (y + chunk.worldCoords.y == height)
+                        if (height <= waterLevel && y + chunk.worldCoords.y > height && y + chunk.worldCoords.y <= waterLevel)
+                        {
+                            blocks[x, y, z] = new Block(BlockType.water);
+                        }
+                        else if (y + chunk.worldCoords.y == height)
                         {
                             blocks[x, y, z] = new Block(topBlock);
                         }

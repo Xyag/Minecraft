@@ -14,6 +14,7 @@ public class DayNightMover : MonoBehaviour
     public float AngleOffset = 120f;
     public AnimationCurve SunBrightness;
     public AnimationCurve MoonBrightness;
+    public AnimationCurve AmbientBrightness;
 
     private Light sunLight;
     private Light moonLight;
@@ -35,5 +36,6 @@ public class DayNightMover : MonoBehaviour
 
         moonLight.intensity = NightBrightnessMultiplier * MoonBrightness.Evaluate(Progress);
         sunLight.intensity = DayBrightnessMultiplier * SunBrightness.Evaluate(Progress);
+        RenderSettings.ambientIntensity = AmbientBrightness.Evaluate(Progress);
     }
 }

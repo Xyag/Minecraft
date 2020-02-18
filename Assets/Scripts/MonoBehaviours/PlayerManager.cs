@@ -37,11 +37,11 @@ public class PlayerManager : MonoBehaviour
             if (hit.hit && hit.blockHit.interactable)
             {
                 Vector3Int chunkCoords = worldManager.world.WorldToChunkCoords(hit.coords);
-                hit.blockHit.interact(hit.coords, chunkCoords, worldManager.world.getChunk(chunkCoords), worldManager.world);
+                hit.blockHit.interact(hit.coords, worldManager.world);
             }
             else
             {
-                equipped.onUse(Player, transform.forward, worldManager.world);
+                equipped.onUse(Player, transform.forward, hit.coords, worldManager.world);
             }
         }
         

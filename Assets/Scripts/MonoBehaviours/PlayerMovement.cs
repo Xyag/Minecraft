@@ -84,14 +84,13 @@ public class PlayerMovement : MonoBehaviour
             {
                 playerPhysics.acceleration.y = 0;
                 playerPhysics.velocity.y -= playerPhysics.velocity.y * FlyFrictionCoeff;
-                Vector3 normalizedLV = localVelocity.normalized;
                 if (moveVector.x == 0)
                 {
-                    playerPhysics.velocity -= transform.right * normalizedLV.x * FlyFrictionCoeff;
+                    playerPhysics.velocity -= transform.right * localVelocity.x * FlyFrictionCoeff;
                 }
                 if (moveVector.y == 0)
                 {
-                    playerPhysics.velocity -= transform.forward * normalizedLV.z * FlyFrictionCoeff;
+                    playerPhysics.velocity -= transform.forward * localVelocity.z * FlyFrictionCoeff;
                 }
             }
         }

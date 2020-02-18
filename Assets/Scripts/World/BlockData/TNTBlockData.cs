@@ -10,10 +10,10 @@ public class TNTBlockData : BlockData
     public TNTBlockData()
     {
     }
-    public override void interact(Vector3Int worldPos, Vector3Int chunkPos, Chunk chunk, World world)
+    public override void interact(Vector3Int worldPos, World world)
     {
         //world.createExplosion(explosionStrength, worldPos);
-        var tntObject = world.spawnEntity(EntityType.tnt, worldPos);
+        var tntObject = world.spawnEntity(EntityType.tnt, worldPos, Vector3.zero);
         var tntScript = tntObject.GetComponent<TNTEntity>();
         tntScript.explosionStrength = explosionStrength;
         tntScript.timeToDetonate = fuseLength + Random.Range(-fuseVariance, fuseVariance);

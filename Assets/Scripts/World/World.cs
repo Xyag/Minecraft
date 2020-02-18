@@ -8,7 +8,7 @@ public class World
     const float EXPLOSION_PARTICLES_SCALE = 0.125f;
 
     public ChunkBuffer unloadChunkBuffer = new ChunkBuffer(1000);
-    
+
     public Dictionary<Vector3Int, Chunk> loadedChunks = new Dictionary<Vector3Int, Chunk>();
     public Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public List<Entity> loadedEntities = new List<Entity>();
@@ -51,18 +51,23 @@ public class World
     private Pool<GameObject> explosionParticlesPool;
     public bool chunkInBounds(Vector3Int coords)
     {
+        //return true;
         return (-worldRadius.x < coords.x && coords.x < worldRadius.x) && (-worldRadius.y < coords.y && coords.y < worldRadius.y) && (-worldRadius.z < coords.z && coords.z < worldRadius.z);
     }
-    public GameObject spawnEntity(EntityType type, Vector3 position)
+    public GameObject spawnEntity(EntityType type, Vector3 position, Vector3 velocity)
     {
         var go = entityTypes[type].get();
         go.transform.position = position;
         Entity e = go.GetComponent<Entity>();
         e.initialize(this);
+        e.velocity = velocity;
         return go;
     }
     public async void createExplosion(float explosionStrength, Vector3Int origin)
     {
+        const int flyInterval = 20;
+        const float blockFlyMult = 0.2f;
+        int currInterval = 0;
         int size = Mathf.CeilToInt(explosionStrength);
         int csize = Mathf.CeilToInt((float)size / (float)Chunk.CHUNK_SIZE);
         for (int x = -size; x <= size; x++)
@@ -77,9 +82,16 @@ public class World
                         BlockData currBlock = getBlock(blockPos + origin);
                         if (currBlock != null && currBlock.type == BlockType.tnt)
                         {
-                            currBlock.interact(blockPos + origin, WorldToChunkCoords(blockPos + origin), loadedChunks[WorldToChunkCoords(blockPos + origin)], this);
+                            currBlock.interact(blockPos + origin, this);
                         }
-                        setBlock(blockPos + origin, BlockType.empty);
+                        setBlock(blockPos + origin, BlockType.empty, updateNeighbors: false);
+                        //if (currInterval == flyInterval)
+                        //{
+                        //    GameObject fly = spawnEntity(EntityType.flyingBlock, blockPos + origin, blockFlyMult * explosionStrength * (Vector3)blockPos);
+                        //    fly.GetComponent<FlyingBlock>().setType(currBlock.type);
+                        //    currInterval = 0;
+                        //}
+                        currInterval++;
                     }
                 }
             }
@@ -281,7 +293,7 @@ public class World
         }
         return neighbors;
     }
-    public Chunk setBlock(Vector3Int worldCoords, BlockType block, bool forceLoadChunk = false)
+    public Chunk setBlock(Vector3Int worldCoords, BlockType block, bool forceLoadChunk = false, bool updateNeighbors = false)
     {
         Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);
         Vector3Int blockCoords = new Vector3Int(worldCoords.x % Chunk.CHUNK_SIZE, worldCoords.y % Chunk.CHUNK_SIZE, worldCoords.z % Chunk.CHUNK_SIZE);
@@ -300,9 +312,9 @@ public class World
             chunkCoords.z -= 1;
             blockCoords.z += Chunk.CHUNK_SIZE;
         }
-        return setBlock(chunkCoords, blockCoords, block, forceLoadChunk);
+        return setBlock(chunkCoords, blockCoords, block, forceLoadChunk, updateNeighbors);
     }
-    public Chunk setBlock(Vector3Int chunkCoords, Vector3Int blockCoords, BlockType block, bool forceLoadChunk = false)
+    public Chunk setBlock(Vector3Int chunkCoords, Vector3Int blockCoords, BlockType block, bool forceLoadChunk = false, bool updateNeighbors = false)
     {
         Chunk chunk = getChunk(chunkCoords);
         if (chunk != null)
@@ -310,6 +322,10 @@ public class World
             if (chunk.blocks == null)
                 chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
+            if (updateNeighbors)
+            {
+                updateNeighborBlocks(chunkCoords*Chunk.CHUNK_SIZE + blockCoords);
+            }
             return chunk;
         }
         else if (forceLoadChunk)
@@ -321,7 +337,17 @@ public class World
         }
         return null;
     }
-    public void setBlockAndMesh(Vector3Int worldCoords, BlockType block)
+    public void updateNeighborBlocks(Vector3Int worldPos)
+    {
+        getBlock(new Vector3Int(worldPos.x + 1, worldPos.y, worldPos.z)).onBlockUpdate(worldPos, this);
+        getBlock(new Vector3Int(worldPos.x - 1, worldPos.y, worldPos.z)).onBlockUpdate(worldPos, this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y + 1, worldPos.z)).onBlockUpdate(worldPos, this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y - 1, worldPos.z)).onBlockUpdate(worldPos, this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z + 1)).onBlockUpdate(worldPos, this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z - 1)).onBlockUpdate(worldPos, this);
+    }
+    //force loads
+    public void setBlockAndMesh(Vector3Int worldCoords, BlockType block, bool updateNeighbors = true)
     {
         Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);
         Vector3Int blockCoords = new Vector3Int(worldCoords.x % Chunk.CHUNK_SIZE, worldCoords.y % Chunk.CHUNK_SIZE, worldCoords.z % Chunk.CHUNK_SIZE);
@@ -340,7 +366,7 @@ public class World
             chunkCoords.z -= 1;
             blockCoords.z += Chunk.CHUNK_SIZE;
         }
-        Chunk chunk = setBlock(chunkCoords, blockCoords, block, true);
+        Chunk chunk = setBlock(chunkCoords, blockCoords, block, true, updateNeighbors);
         MeshGenerator.meshChunkBlockChanged(chunk, blockCoords, this);
     }
     
@@ -407,6 +433,24 @@ public class World
             Vector3Int testWorldCoord = new Vector3Int(Mathf.RoundToInt(testPoint.x), Mathf.RoundToInt(testPoint.y), Mathf.RoundToInt(testPoint.z));
             BlockData currBlock = getBlock(testWorldCoord);
             if (currBlock.raycastable)
+            {
+                return new BlockHit(currBlock, testWorldCoord);
+            }
+        }
+        return new BlockHit(null, Vector3Int.zero, false);
+    }
+    public BlockHit raycastToEmpty(Vector3 origin, Vector3 direction, float distance)
+    {
+        direction = direction.normalized;
+        float distTraveled = 0;
+        const float step = 0.1f;
+        while (distTraveled <= distance)
+        {
+            Vector3 testPoint = distTraveled * direction + origin;
+            distTraveled += step;
+            Vector3Int testWorldCoord = new Vector3Int(Mathf.RoundToInt(testPoint.x), Mathf.RoundToInt(testPoint.y), Mathf.RoundToInt(testPoint.z));
+            BlockData currBlock = getBlock(testWorldCoord);
+            if (currBlock.type == BlockType.empty)
             {
                 return new BlockHit(currBlock, testWorldCoord);
             }

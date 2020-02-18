@@ -39,7 +39,6 @@ public class WorldManager : MonoBehaviour
             var entity = go.GetComponent<Entity>();
             world.entityTypes.Add(entity.type, Pool<GameObject>.createEntityPool(go, world));
         }
-
         WorldLoader wl = GetComponent<WorldLoader>();
         if (wl)
         {
@@ -48,8 +47,6 @@ public class WorldManager : MonoBehaviour
         }
 
         cursorInventory.items = new Item[1];
-
-        
     }
 
     public void Update()

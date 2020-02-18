@@ -53,10 +53,11 @@ public static class WorldGenerator
         {
             heightNoise = new NoiseGroup(2, 0.005f, 4.0f, 16, 0.8f, seed - 1230),
             heightOffset = 16,
-            topBlock = BlockType.sand,
+            topBlock = BlockType.tnt,
             midBlock = BlockType.sand,
             underGroundBlock = BlockType.stone,
             midDepth = 10,
+            waterLevel = 10,
         };
         var plainsTrees = new TreeGenerationLayer
         {
@@ -92,7 +93,6 @@ public static class WorldGenerator
         };
 
         generationLayers.Add(desertGenerator);
-        //generationLayers.Add(desertGenerator);
         generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);

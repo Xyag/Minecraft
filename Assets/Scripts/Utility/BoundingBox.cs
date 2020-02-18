@@ -67,7 +67,9 @@ public struct BoundingBox
             {
                 for (int z = Mathf.RoundToInt(center.z - extents.z); z <= Mathf.RoundToInt(center.z + extents.z); z++)
                 {
-                    if (world.getBlock(new Vector3Int(x, y, z)).fullCollision)
+                    var b = world.getBlock(new Vector3Int(x, y, z));
+                    //Debug.Log("getting: " + new Vector3Int(x, y, z) + ". Type = " + b.type);
+                    if (b.fullCollision)
                         return true;
                 }
             }

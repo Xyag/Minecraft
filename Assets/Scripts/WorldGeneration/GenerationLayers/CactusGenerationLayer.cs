@@ -27,7 +27,8 @@ public class CactusGenerationLayer : IGenerationLayer
                 Vector2Int cactusCoords = new Vector2Int((int)(Chunk.CHUNK_SIZE*(0.5f+0.5f*noise.GetSimplex(chunk.worldCoords.x,chunk.worldCoords.y,chunk.worldCoords.z+c))), (int)(Chunk.CHUNK_SIZE * (0.5f+0.5f*noise.GetSimplex(chunk.worldCoords.x+c+123, chunk.worldCoords.y, chunk.worldCoords.z))));
                 for (start = Chunk.CHUNK_SIZE - 1; start > 0; start--)
                 {
-                    if (chunk.blocks[cactusCoords.x, start, cactusCoords.y].type != BlockType.empty && chunk.blocks[cactusCoords.x, start, cactusCoords.y].type != BlockType.chunk_border)
+                    var data = Block.blockTypes[(int)chunk.blocks[cactusCoords.x, start, cactusCoords.y].type];
+                    if (data.fullCollision && data.type != BlockType.empty && data.type != BlockType.chunk_border)
                     {
                         set = true;
                         break;

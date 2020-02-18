@@ -7,7 +7,7 @@ public class MinisharkData : ItemData
     public float useInterval = 0.1f;
 
     private float lastUseTime = 0;
-    public override void onUse(Entity user, Vector3 useDirection, World world)
+    public override void onUse(Entity user, Vector3 useDirection, Vector3Int useBlockPos, World world)
     {
         if (Time.time - lastUseTime > useInterval)
         {
@@ -27,10 +27,8 @@ public class MinisharkData : ItemData
             if (hasAmmo)
             {
                 lastUseTime = Time.time;
-                GameObject obj = user.world.spawnEntity(bulletType, user.transform.position);
-                Vector3 shootV = useDirection * bulletSpeed;
+                GameObject obj = user.world.spawnEntity(bulletType, user.transform.position, useDirection * bulletSpeed);
                 obj.transform.LookAt(user.transform.position + useDirection);
-                obj.GetComponent<PhysicsObject>().velocity = shootV;
             }
         }
     }

@@ -4,5 +4,5 @@ using UnityEngine;
 
 public static class SceneData
 {
-    public static string targetWorld;
+    public static string targetWorld = "test";
 }
