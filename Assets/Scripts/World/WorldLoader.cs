@@ -82,12 +82,15 @@ public class WorldLoader : MonoBehaviour
     {
         Vector3Int playerChunkCoords = (Vector3Int)playerChunkCoordsObj;
         unloadBuffer.Clear();
-        foreach (var chunk in world.loadedChunks.Values)
+        lock (world.loadedChunks)
         {
-            if ((chunk.chunkCoords - playerChunkCoords).sqrMagnitude >= UnloadDist * UnloadDist)
+            foreach (var chunk in world.loadedChunks.Values)
             {
-                //too far away
-                unloadBuffer.Add(chunk);
+                if ((chunk.chunkCoords - playerChunkCoords).sqrMagnitude >= UnloadDist * UnloadDist)
+                {
+                    //too far away
+                    unloadBuffer.Add(chunk);
+                }
             }
         }
         foreach (var chunk in unloadBuffer)

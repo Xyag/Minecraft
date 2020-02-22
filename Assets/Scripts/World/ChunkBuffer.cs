@@ -30,18 +30,12 @@ public class ChunkBuffer
 
     public int Count()
     {
-        lock (finishedMeshes)
-        {
-            return finishedMeshes.Count;
-        }
+        return finishedMeshes.Count;
     }
 
     public Chunk Get(int position)
     {
-        lock (finishedMeshes)
-        {
-            return finishedMeshes[position];
-        }
+        return finishedMeshes[position];
     }
 
     public bool Replace(Chunk toReplace)

@@ -16,6 +16,17 @@ public class ChunkSerializer
             Directory.CreateDirectory(savePath);
         }
     }
+    //stores info like the last played date in a file called "worldInfo.dat"
+    //1. last played date: long in utc
+    //2. world name: string
+    public void updateWorldInfo(WorldInfo info)
+    {
+        using (BinaryWriter bw = new BinaryWriter(File.Create(savePath + "worldInfo.dat")))
+        {
+            bw.Write(info.lastPlayed.ToFileTimeUtc());
+            bw.Write(info.fileName);
+        }
+    }
     //saves a chunk to a file in savePath named <chunkCoords>.chunk
     //compresses it by writing the block type, then how many blocks of that type there are in a row. xyz order
     //if the chunk has a null block array, it writes 'n' and returns

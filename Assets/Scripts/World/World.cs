@@ -13,7 +13,9 @@ public class World
     public Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public List<Entity> loadedEntities = new List<Entity>();
     public readonly string savePath;
+    public readonly string name;
     public readonly Vector3Int worldRadius;
+    public readonly bool infinite;
     private readonly ChunkSerializer chunkSerializer;
     public GameObject explosionParticles
     {
@@ -23,12 +25,14 @@ public class World
         }
     }
 
-    public World(string savePath, GameObject explosionParticles)
+    public World(string savePath, string name, GameObject explosionParticles)
     {
         this.savePath = savePath;
         chunkSerializer = new ChunkSerializer(savePath);
+        chunkSerializer.updateWorldInfo(new WorldInfo { fileName = name, lastPlayed = System.DateTime.Now });
         this.explosionParticles = explosionParticles;
         worldRadius = new Vector3Int(3, 3, 3);
+        infinite = true;
     }
     public void saveAll()
     {
@@ -36,12 +40,17 @@ public class World
         {
             Directory.CreateDirectory(savePath);
         }
+        List<Chunk> toSave = new List<Chunk>(loadedChunks.Values.Count);
         lock (loadedChunks)
         {
             foreach(var chunk in loadedChunks.Values)
             {
-                chunkSerializer.writeChunk(chunk);
+                toSave.Add(chunk);
             }
+        }
+        foreach(var chunk in toSave)
+        {
+            chunkSerializer.writeChunk(chunk);
         }
     }
 
@@ -51,7 +60,7 @@ public class World
     private Pool<GameObject> explosionParticlesPool;
     public bool chunkInBounds(Vector3Int coords)
     {
-        //return true;
+        if (infinite) return true;
         return (-worldRadius.x < coords.x && coords.x < worldRadius.x) && (-worldRadius.y < coords.y && coords.y < worldRadius.y) && (-worldRadius.z < coords.z && coords.z < worldRadius.z);
     }
     public GameObject spawnEntity(EntityType type, Vector3 position, Vector3 velocity)
@@ -184,7 +193,6 @@ public class World
             if (chunk.gameObject != null)
             {
                 chunk.gameObject.SetActive(false);
-                chunk.gameObject.GetComponent<MeshFilter>().sharedMesh.Clear();
             }
             loadedChunks.Remove(chunk.chunkCoords);
         }
@@ -221,25 +229,29 @@ public class World
     }
     public Chunk getChunk(Vector3Int chunkCoords)
     {
+        if (!chunkInBounds(chunkCoords))
+            return null;
+        Chunk chunk;
         lock (loadedChunks)
         {
-            if (!chunkInBounds(chunkCoords))
-                return null;
-            Chunk chunk;
             if (loadedChunks.TryGetValue(chunkCoords, out chunk))
             {
                 return chunk;
             }
-            else if ((chunk = chunkSerializer.readChunk(chunkCoords)) != null)
+        }
+        if ((chunk = chunkSerializer.readChunk(chunkCoords)) != null)
+        {
+            lock (loadedChunks)
             {
                 loadedChunks.Add(chunkCoords, chunk);
-                return chunk;
             }
-            else
-            {
-                return null;
-            }
+            return chunk;
         }
+        else
+        {
+            return null;
+        }
+
     }
     public Vector3Int WorldToChunkCoords(Vector3 worldCoords)
     {
@@ -267,29 +279,32 @@ public class World
     {
         List<Chunk> neighbors = new List<Chunk>(6);
         Chunk temp;
-        if (loadedChunks.TryGetValue(coords + new Vector3Int(1, 0, 0), out temp))
+        lock (loadedChunks)
         {
-            neighbors.Add(temp);
-        }
-        if (loadedChunks.TryGetValue(coords + new Vector3Int(-1, 0, 0), out temp))
-        {
-            neighbors.Add(temp);
-        }
-        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 1, 0), out temp))
-        {
-            neighbors.Add(temp);
-        }
-        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, -1, 0), out temp))
-        {
-            neighbors.Add(temp);
-        }
-        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, 1), out temp))
-        {
-            neighbors.Add(temp);
-        }
-        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, -1), out temp))
-        {
-            neighbors.Add(temp);
+            if (loadedChunks.TryGetValue(coords + new Vector3Int(1, 0, 0), out temp))
+            {
+                neighbors.Add(temp);
+            }
+            if (loadedChunks.TryGetValue(coords + new Vector3Int(-1, 0, 0), out temp))
+            {
+                neighbors.Add(temp);
+            }
+            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 1, 0), out temp))
+            {
+                neighbors.Add(temp);
+            }
+            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, -1, 0), out temp))
+            {
+                neighbors.Add(temp);
+            }
+            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, 1), out temp))
+            {
+                neighbors.Add(temp);
+            }
+            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, -1), out temp))
+            {
+                neighbors.Add(temp);
+            }
         }
         return neighbors;
     }

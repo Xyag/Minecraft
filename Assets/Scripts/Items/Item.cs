@@ -10,7 +10,7 @@ public struct Item
     {
         itemData = new ItemData[] {
             new ItemData { type = ItemType.empty, maxStack = 0 },
-            new ItemBlockData { type = ItemType.block, textureName = "block", displayName = "block", maxStack = 999, blockType = BlockType.sand },
+            new ItemBlockData { type = ItemType.block, textureName = "block", displayName = "block", maxStack = 999, blockType = BlockType.tnt },
             new MinisharkData { type = ItemType.minishark, textureName = "minishark", displayName = "Minishark", maxStack = 1 },
             new ItemData { type = ItemType.bullet, maxStack = 999, textureName = "bullet", displayName = "Bullet" },
         };

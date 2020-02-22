@@ -30,28 +30,48 @@ public class WorldEntryFactory : MonoBehaviour
     public void GenerateAll(string path)
     {
         string[] worlds = Directory.GetDirectories(path);
+        List<WorldInfo> infos = new List<WorldInfo>(worlds.Length);
         foreach (var w in worlds)
         {
-            Generate(w.Substring(w.LastIndexOf('/')+1));
+            WorldInfo info = new WorldInfo();
+            if (File.Exists(w+"/worldInfo.dat"))
+            {
+                using (BinaryReader br = new BinaryReader(File.OpenRead(w + "/worldInfo.dat")))
+                {
+                    info.lastPlayed = System.DateTime.FromFileTimeUtc(br.ReadInt64()).ToLocalTime();
+                }
+            }
+            else
+            {
+                info.lastPlayed = System.DateTime.Now;
+            }
+            
+            info.fileName = w.Substring(w.LastIndexOf('/')+1);
+            infos.Add(info);
+        }
+        infos.Sort((a, b) => b.lastPlayed.CompareTo(a.lastPlayed)); //sorts by most recently played
+        foreach(var wi in infos)
+        {
+            Generate(wi);
         }
     }
-    public void Generate(string worldName)
+    public void Generate(WorldInfo info)
     {
-        if (!Directory.Exists(location + worldName))
+        if (!Directory.Exists(location + info.fileName))
         {
-            Debug.LogError("world not found: " + worldName);
+            Debug.LogError("world not found: " + info.fileName);
             return;
         }
         GameObject entry = Instantiate(EntryPrefab, ListPanel, false);
         entry.transform.position = new Vector3(ListPanel.position.x, ListPanel.position.y - EntrySpacing * index, ListPanel.position.z);
-        string dispName = worldName;
-        if (worldName.Length > MaxWorldNameLength)
+        string dispName = info.fileName;
+        if (info.fileName.Length > MaxWorldNameLength)
         {
-            dispName = worldName.Substring(0, MaxWorldNameLength-3) + "...";
+            dispName = info.fileName.Substring(0, MaxWorldNameLength-3) + "...";
             Debug.Log(dispName);
         }
         var scriptEntiry = entry.GetComponent<WorldEntry>();
-        scriptEntiry.SetValues(worldName, dispName, System.DateTime.Now.ToString(), g => { SceneData.targetWorld = g.worldName; playEvent.Invoke(); }, g => ConfirmDelete(g.worldName));
+        scriptEntiry.SetValues(info.fileName, dispName, info.lastPlayed.ToString(), g => { SceneData.targetWorld = g.worldName; playEvent.Invoke(); }, g => ConfirmDelete(g.worldName));
         entries.Add(scriptEntiry);
         index++;
     }

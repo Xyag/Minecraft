@@ -16,8 +16,6 @@ public static class MeshGenerator
 
     public static void spawnFromQueue(long maxTimeMS, int minSpawns)
     {
-        lock(finishedMeshes)
-        {
             stopwatch.Restart();
             int chunksRemaining = finishedMeshes.Count();
             int spawns = 0;
@@ -29,7 +27,6 @@ public static class MeshGenerator
                 chunksRemaining--;
                 spawns++;
             }
-        }
     }
     public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
@@ -53,33 +50,30 @@ public static class MeshGenerator
         {
             Vector3Int chunkCoords = chunk.chunkCoords;
             generateAndQueue(world, chunk);
-            lock (world.loadedChunks)
+            //check surrounding chunks
+            if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
             {
-                //check surrounding chunks
-                if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
-                {
-                    generateAndQueue(world, chunk);
-                }
-                if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
-                {
-                    generateAndQueue(world, chunk);
-                }
-                if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
-                {
-                    generateAndQueue(world, chunk);
-                }
-                if (blockCoords.x == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
-                {
-                    generateAndQueue(world, chunk);
-                }
-                if (blockCoords.y == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
-                {
-                    generateAndQueue(world, chunk);
-                }
-                if (blockCoords.z == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
-                {
-                    generateAndQueue(world, chunk);
-                }
+                generateAndQueue(world, chunk);
+            }
+            if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
+            {
+                generateAndQueue(world, chunk);
+            }
+            if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
+            {
+                generateAndQueue(world, chunk);
+            }
+            if (blockCoords.x == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
+            {
+                generateAndQueue(world, chunk);
+            }
+            if (blockCoords.y == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
+            {
+                generateAndQueue(world, chunk);
+            }
+            if (blockCoords.z == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
+            {
+                generateAndQueue(world, chunk);
             }
         });
     }

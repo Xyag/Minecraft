@@ -2,7 +2,7 @@
 
 public class ItemBlockData : ItemData
 {
-    public BlockType blockType = BlockType.sand;
+    public BlockType blockType = BlockType.tnt;
 
     public override void onUse(Entity user, Vector3 useDirection, Vector3Int useBlockPos, World world)
     {
@@ -12,6 +12,7 @@ public class ItemBlockData : ItemData
             if (user.inventory.items[i].type == ItemType.block && user.inventory.items[i].count > 0)
             {
                 hasBlock = true;
+                user.inventory.reduceItem(i, 1);
             }
         }
         if (hasBlock)

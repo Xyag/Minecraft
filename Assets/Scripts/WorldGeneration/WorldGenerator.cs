@@ -53,7 +53,7 @@ public static class WorldGenerator
         {
             heightNoise = new NoiseGroup(2, 0.005f, 4.0f, 16, 0.8f, seed - 1230),
             heightOffset = 16,
-            topBlock = BlockType.tnt,
+            topBlock = BlockType.sand,
             midBlock = BlockType.sand,
             underGroundBlock = BlockType.stone,
             midDepth = 10,

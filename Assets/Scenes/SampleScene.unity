@@ -1334,8 +1334,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
-  LoadDist: 5
-  UnloadDist: 6
+  LoadDist: 8
+  UnloadDist: 9
   toLoad: 0
   saveInterval: 10
 --- !u!1 &863493401
