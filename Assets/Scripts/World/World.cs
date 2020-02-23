@@ -72,10 +72,8 @@ public class World
         e.velocity = velocity;
         return go;
     }
-    public async void createExplosion(float explosionStrength, Vector3Int origin)
+    public void createExplosion(float explosionStrength, Vector3Int origin)
     {
-        const int flyInterval = 20;
-        const float blockFlyMult = 0.2f;
         int currInterval = 0;
         int size = Mathf.CeilToInt(explosionStrength);
         int csize = Mathf.CeilToInt((float)size / (float)Chunk.CHUNK_SIZE);
@@ -93,19 +91,13 @@ public class World
                         {
                             currBlock.interact(blockPos + origin, this);
                         }
-                        setBlock(blockPos + origin, BlockType.empty, updateNeighbors: false);
-                        //if (currInterval == flyInterval)
-                        //{
-                        //    GameObject fly = spawnEntity(EntityType.flyingBlock, blockPos + origin, blockFlyMult * explosionStrength * (Vector3)blockPos);
-                        //    fly.GetComponent<FlyingBlock>().setType(currBlock.type);
-                        //    currInterval = 0;
-                        //}
+                        setBlockAndMesh(blockPos + origin, BlockType.empty, updateNeighbors: true);
                         currInterval++;
                     }
                 }
             }
         }
-        Vector3Int chunkPos = WorldToChunkCoords(origin);
+        /*Vector3Int chunkPos = WorldToChunkCoords(origin);
         List<Chunk> remeshQueue = new List<Chunk>(csize * csize * csize * 5);
         for (int x = -csize; x <= csize; x++)
         {
@@ -122,7 +114,10 @@ public class World
                 }
             }
         }
-        Task t = MeshGenerator.remeshAll(remeshQueue, this, remeshQueue.Count);
+        foreach (var chunk in remeshQueue)
+        {
+            MeshGenerator.addToFrameBuffer(chunk);
+        }*/
         foreach (var en in loadedEntities)
         {
             if (en != null && Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
@@ -133,7 +128,6 @@ public class World
         var explo = explosionParticlesPool.get();
         explo.transform.localScale = explosionStrength * EXPLOSION_PARTICLES_SCALE * Vector3.one;
         explo.transform.position = origin;
-        await t;
     }
     public void unloadFromQueue(long maxTimeMS, int minUnloads)
     {
@@ -339,6 +333,7 @@ public class World
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
             if (updateNeighbors)
             {
+                getBlock(chunkCoords, blockCoords).onBlockUpdate(Chunk.CHUNK_SIZE * chunkCoords + blockCoords, this);
                 updateNeighborBlocks(chunkCoords*Chunk.CHUNK_SIZE + blockCoords);
             }
             return chunk;
@@ -354,12 +349,12 @@ public class World
     }
     public void updateNeighborBlocks(Vector3Int worldPos)
     {
-        getBlock(new Vector3Int(worldPos.x + 1, worldPos.y, worldPos.z)).onBlockUpdate(worldPos, this);
-        getBlock(new Vector3Int(worldPos.x - 1, worldPos.y, worldPos.z)).onBlockUpdate(worldPos, this);
-        getBlock(new Vector3Int(worldPos.x, worldPos.y + 1, worldPos.z)).onBlockUpdate(worldPos, this);
-        getBlock(new Vector3Int(worldPos.x, worldPos.y - 1, worldPos.z)).onBlockUpdate(worldPos, this);
-        getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z + 1)).onBlockUpdate(worldPos, this);
-        getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z - 1)).onBlockUpdate(worldPos, this);
+        getBlock(new Vector3Int(worldPos.x + 1, worldPos.y, worldPos.z)).onBlockUpdate(new Vector3Int(worldPos.x + 1, worldPos.y, worldPos.z), this);
+        getBlock(new Vector3Int(worldPos.x - 1, worldPos.y, worldPos.z)).onBlockUpdate(new Vector3Int(worldPos.x - 1, worldPos.y, worldPos.z), this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y + 1, worldPos.z)).onBlockUpdate(new Vector3Int(worldPos.x, worldPos.y + 1, worldPos.z), this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y - 1, worldPos.z)).onBlockUpdate(new Vector3Int(worldPos.x, worldPos.y - 1, worldPos.z), this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z + 1)).onBlockUpdate(new Vector3Int(worldPos.x, worldPos.y, worldPos.z + 1), this);
+        getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z - 1)).onBlockUpdate(new Vector3Int(worldPos.x, worldPos.y, worldPos.z - 1), this);
     }
     //force loads
     public void setBlockAndMesh(Vector3Int worldCoords, BlockType block, bool updateNeighbors = true)
@@ -449,10 +444,10 @@ public class World
             BlockData currBlock = getBlock(testWorldCoord);
             if (currBlock.raycastable)
             {
-                return new BlockHit(currBlock, testWorldCoord);
+                return new BlockHit(currBlock, testWorldCoord, new Vector3(testPoint.x-testWorldCoord.x, testPoint.y - testWorldCoord.y, testPoint.z - testWorldCoord.z));
             }
         }
-        return new BlockHit(null, Vector3Int.zero, false);
+        return new BlockHit(null, Vector3Int.zero, Vector3.zero, false);
     }
     public BlockHit raycastToEmpty(Vector3 origin, Vector3 direction, float distance)
     {
@@ -467,9 +462,9 @@ public class World
             BlockData currBlock = getBlock(testWorldCoord);
             if (currBlock.type == BlockType.empty)
             {
-                return new BlockHit(currBlock, testWorldCoord);
+                return new BlockHit(currBlock, testWorldCoord, new Vector3(testPoint.x - testWorldCoord.x, testPoint.y - testWorldCoord.y, testPoint.z - testWorldCoord.z));
             }
         }
-        return new BlockHit(null, Vector3Int.zero, false);
+        return new BlockHit(null, Vector3Int.zero, Vector3.zero, false);
     }
 }

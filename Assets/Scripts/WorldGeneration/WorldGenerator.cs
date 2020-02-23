@@ -37,6 +37,7 @@ public static class WorldGenerator
             midBlock = BlockType.dirt,
             underGroundBlock = BlockType.stone,
             midDepth = 3,
+            waterLevel = -100,
         };
 
         var plainsGenerator = new HeightmapGenerationLayer
@@ -65,15 +66,6 @@ public static class WorldGenerator
             minHeight = 5,
             maxHeight = 12
         };
-        var mountainsGeneratorp = new HeightmapGenerationLayer
-        {
-            heightNoise = new NoiseGroup(3, 0.0002f, 5.0f, 1024, 0.25f, seed - 1230),
-            heightOffset = 16,
-            topBlock = BlockType.snow,
-            midBlock= BlockType.stone,
-            underGroundBlock = BlockType.stone,
-            midDepth = 1,
-        };
         var mountainsGenerator = new MountainGenerationLayer
         {
             heightNoise = new NoiseGroup(3, 0.0002f, 5.0f, 1024, 0.25f, seed - 1230),
@@ -92,11 +84,11 @@ public static class WorldGenerator
             cactusDensityConstant = 1,
         };
 
-        generationLayers.Add(desertGenerator);
-        generationLayers.Add(cactusGenerator);
-        //generationLayers.Add(plainsTrees);
+        generationLayers.Add(holeyHillsGenerator);
+        //generationLayers.Add(cactusGenerator);
+        generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
-        //generationLayers.Add(caveGenerator);
+        generationLayers.Add(caveGenerator);
     }
     public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
     {

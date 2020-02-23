@@ -8,6 +8,13 @@ public class PlayerManager : MonoBehaviour
     public WorldManager worldManager;
     private bool inventoryOpen = false;
 
+    public void Start()
+    {
+        Player.inventory.items = new Item[10];
+        Player.inventory[1] = new ItemMinishark(ItemType.minishark, 1);
+        Player.inventory[2] = new Item(ItemType.bullet, 10);
+        Player.inventory[0] = new ItemBlock(BlockType.tnt, 999);
+    }
     public void Update()
     {
         var hit = worldManager.world.raycast(transform.position, transform.forward, 10);
@@ -33,15 +40,13 @@ public class PlayerManager : MonoBehaviour
         }
         if (Input.GetMouseButtonDown(1))
         {
-            ItemData equipped = Player.inventory.getItemData(0);
             if (hit.hit && hit.blockHit.interactable)
             {
-                Vector3Int chunkCoords = worldManager.world.WorldToChunkCoords(hit.coords);
                 hit.blockHit.interact(hit.coords, worldManager.world);
             }
             else
             {
-                equipped.onUse(Player, transform.forward, hit.coords, worldManager.world);
+                Player.inventory[0].onUse(Player, transform.forward, hit, worldManager.world);
             }
         }
         

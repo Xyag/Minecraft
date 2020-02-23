@@ -1,27 +1,25 @@
 using UnityEngine;
 
-public class MinisharkData : ItemData
+public class ItemMinishark : Item
 {
+    public ItemMinishark(ItemType type, int count) : base(ItemType.minishark,count){}
+
     public EntityType bulletType = EntityType.bullet;
     public float bulletSpeed = 60;
     public float useInterval = 0.1f;
 
     private float lastUseTime = 0;
-    public override void onUse(Entity user, Vector3 useDirection, Vector3Int useBlockPos, World world)
+    public override void onUse(Entity user, Vector3 useDirection, BlockHit usedOn, World world)
     {
         if (Time.time - lastUseTime > useInterval)
         {
             bool hasAmmo = false;
             for (int i = 0; i < user.inventory.items.Length; i++)
             {
-                if (user.inventory.items[i].type == ItemType.bullet && user.inventory.items[i].count > 0)
+                if (user.inventory[i] != null && user.inventory[i].type == ItemType.bullet && user.inventory[i].count > 0)
                 {
                     hasAmmo = true;
-                    user.inventory.items[i].count--;
-                    if (user.inventory.items[i].count == 0)
-                    {
-                        user.inventory.items[i].type = ItemType.empty;
-                    }
+                    user.inventory.reduceItem(i, 1);
                 }
             }
             if (hasAmmo)

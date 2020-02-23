@@ -20,14 +20,14 @@ public class CursorInventoryUI : MonoBehaviour
     void Update()
     {
         itemTransform.position = Input.mousePosition;
-        if (worldManager.cursorInventory.items[0].type == ItemType.empty)
+        if (worldManager.cursorInventory[0] == null || worldManager.cursorInventory[0].type == ItemType.empty)
         {
             itemImage.enabled = false;
         }
         else
         {
             itemImage.enabled = true;
-            itemImage.sprite = Item.itemData[(int)worldManager.cursorInventory.items[0].type].sprite;
+            itemImage.sprite = Item.itemData[(int)worldManager.cursorInventory[0].type].sprite;
         }
 
     }

@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public struct Item
+public class Item
 {
     public static ItemData[] itemData;
 
@@ -10,8 +10,8 @@ public struct Item
     {
         itemData = new ItemData[] {
             new ItemData { type = ItemType.empty, maxStack = 0 },
-            new ItemBlockData { type = ItemType.block, textureName = "block", displayName = "block", maxStack = 999, blockType = BlockType.tnt },
-            new MinisharkData { type = ItemType.minishark, textureName = "minishark", displayName = "Minishark", maxStack = 1 },
+            new ItemData { type = ItemType.block, textureName = "block", displayName = "block", maxStack = 999 },
+            new ItemData { type = ItemType.minishark, textureName = "minishark", displayName = "Minishark", maxStack = 1 },
             new ItemData { type = ItemType.bullet, maxStack = 999, textureName = "bullet", displayName = "Bullet" },
         };
 
@@ -25,17 +25,18 @@ public struct Item
         }
     }
 
-
     public ItemType type;
-    public BlockType blockType;
     public int count;
 
-    public Item(ItemType type, int count, BlockType blockType = BlockType.empty)
+    public Item(ItemType type, int count)
     {
         this.type = type;
         this.count = count;
-        this.blockType = blockType;
     }
+
+    public virtual void onUse(Entity user, Vector3 useDirection, BlockHit usedOn, World world) { }
+    public virtual void onEquip(Entity user, World world) { }
+    public virtual void onDequip(Entity user, World world) { }
 }
 
 public enum ItemType

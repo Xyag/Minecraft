@@ -7,8 +7,4 @@ public class ItemData
     public UnityEngine.Sprite sprite;
     public string displayName;
     public int maxStack = 999;
-
-    public virtual void onUse(Entity user, Vector3 useDirection, Vector3Int useBlockPos, World world) { }
-    public virtual void onEquip(Entity user, World world) { }
-    public virtual void onDequip(Entity user, World world) { }
 }

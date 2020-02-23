@@ -28,7 +28,7 @@ public class CactusGenerationLayer : IGenerationLayer
                 for (start = Chunk.CHUNK_SIZE - 1; start > 0; start--)
                 {
                     var data = Block.blockTypes[(int)chunk.blocks[cactusCoords.x, start, cactusCoords.y].type];
-                    if (data.fullCollision && data.type != BlockType.empty && data.type != BlockType.chunk_border)
+                    if (data.fullCollision)
                     {
                         set = true;
                         break;

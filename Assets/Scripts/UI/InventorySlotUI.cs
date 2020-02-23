@@ -20,7 +20,7 @@ public class InventorySlotUI : MonoBehaviour
     }
     public void assignItem(Item item)
     {
-        if (item.type != ItemType.empty && item.count > 1)
+        if (item != null && item.type != ItemType.empty && item.count > 1)
         {
             CountText.text = item.count.ToString();
         }

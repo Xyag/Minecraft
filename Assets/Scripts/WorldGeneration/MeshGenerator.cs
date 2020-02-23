@@ -10,23 +10,41 @@ public static class MeshGenerator
 {
     public static PhysicMaterial chunkPhysMaterial;
     public static ChunkBuffer finishedMeshes = new ChunkBuffer(3000); //3000 cause that's probably more than we need.
+    private static List<Chunk> frameBuffer = new List<Chunk>(300);
     public static List<Vector3Int> currentlyMeshing = new List<Vector3Int>();
     public static Pool<GameObject> chunkPool;
     private static readonly Stopwatch stopwatch = new Stopwatch();
 
+    public static void addToFrameBuffer(Chunk chunk)
+    {
+        if (!frameBuffer.Contains(chunk))
+        {
+            lock (frameBuffer)
+            {
+                frameBuffer.Add(chunk);
+            }
+        }
+    }
+    public static void emptyFrameBuffer(World world)
+    {
+        lock (frameBuffer)
+        {
+            spawnAll(frameBuffer, world);
+            frameBuffer.Clear();
+        }
+    }
     public static void spawnFromQueue(long maxTimeMS, int minSpawns)
     {
-            stopwatch.Restart();
-            int chunksRemaining = finishedMeshes.Count();
-            int spawns = 0;
-            if(chunksRemaining != 0)
-            while (chunksRemaining > 0 && (spawns < minSpawns || stopwatch.ElapsedMilliseconds < maxTimeMS))
-            {
-                Chunk data = finishedMeshes.Pop();
-                spawnChunk(data);
-                chunksRemaining--;
-                spawns++;
-            }
+        stopwatch.Restart();
+        int chunksRemaining = finishedMeshes.Count();
+        int spawns = 0;
+        while (chunksRemaining > 0 && (spawns < minSpawns || stopwatch.ElapsedMilliseconds < maxTimeMS))
+        {
+            Chunk data = finishedMeshes.Pop();
+            spawnChunk(data);
+            chunksRemaining--;
+            spawns++;
+        }
     }
     public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
@@ -46,49 +64,32 @@ public static class MeshGenerator
     {
         if (chunk == null)
             return;
-        Task.Run(() =>
+        frameBuffer.Add(chunk);
+        Vector3Int chunkCoords = chunk.chunkCoords;
+        //check surrounding chunks
+        if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
         {
-            Vector3Int chunkCoords = chunk.chunkCoords;
-            generateAndQueue(world, chunk);
-            //check surrounding chunks
-            if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
-            {
-                generateAndQueue(world, chunk);
-            }
-            if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
-            {
-                generateAndQueue(world, chunk);
-            }
-            if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
-            {
-                generateAndQueue(world, chunk);
-            }
-            if (blockCoords.x == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
-            {
-                generateAndQueue(world, chunk);
-            }
-            if (blockCoords.y == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
-            {
-                generateAndQueue(world, chunk);
-            }
-            if (blockCoords.z == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
-            {
-                generateAndQueue(world, chunk);
-            }
-        });
-    }
-    public static async Task remeshAll(IEnumerable<Chunk> collection, World world, int initSize = 1)
-    {
-        List<Task<Chunk>> meshTasks = new List<Task<Chunk>>();
-        foreach (var item in collection)
-        {
-            meshTasks.Add(Task.Run(() => generateMesh(world, item)));
+            frameBuffer.Add(chunk);
         }
-        while (meshTasks.Count > 0)
+        if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
         {
-            var finishedTask = await Task.WhenAny(meshTasks);
-            replaceChunkMesh(finishedTask.Result, finishedTask.Result.renderData, world);
-            meshTasks.Remove(finishedTask);
+            frameBuffer.Add(chunk);
+        }
+        if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
+        {
+            frameBuffer.Add(chunk);
+        }
+        if (blockCoords.x == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
+        {
+            frameBuffer.Add(chunk);
+        }
+        if (blockCoords.y == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
+        {
+            frameBuffer.Add(chunk);
+        }
+        if (blockCoords.z == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
+        {
+            frameBuffer.Add(chunk);
         }
     }
     public static void spawnChunk(Chunk chunk)
@@ -109,60 +110,19 @@ public static class MeshGenerator
         chunkObject.name = (data.worldPos / Chunk.CHUNK_SIZE).ToString();
         chunkObject.transform.position = data.worldPos;
 
+        replaceChunkMesh(chunk, data);
+    }
+    public static void replaceChunkMesh(Chunk chunk, MeshData data)
+    {
+        MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
 
-        MeshFilter mf = chunkObject.GetComponent<MeshFilter>();
         mf.mesh.Clear();
-        mf.mesh.SetVertices(data.vertices);
-        mf.mesh.SetTriangles(data.triangles, 0);
-        mf.mesh.SetNormals(data.normals);
-        mf.mesh.SetUVs(0, data.uvs);
-    }
-    public static void replaceChunkMesh(Chunk chunk, MeshData data, World world)
-    {
-        if (chunk != null && chunk.gameObject != null)
+        if (data != null)
         {
-            MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
-            
-            mf.mesh.Clear();
-            if (data != null)
-            {
-                mf.mesh.SetVertices(data.vertices);
-                mf.mesh.SetTriangles(data.triangles, 0);
-                mf.mesh.SetNormals(data.normals);
-                mf.mesh.SetUVs(0, data.uvs);
-            }
-        }
-    }
-    public static void remeshChunk(World world, Chunk chunk, bool alertNeighbors = true)
-    {
-        if (chunk == null)
-            return;
-        if (chunk.blocks == null)
-        {
-            return;
-        }
-        if (chunk.gameObject == null)
-        {
-            spawnChunk(generateMesh(world, chunk));
-        }
-        else
-        {
-            MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
-            MeshData data = generateMesh(world, chunk).renderData;
-            mf.mesh.Clear();
             mf.mesh.SetVertices(data.vertices);
             mf.mesh.SetTriangles(data.triangles, 0);
             mf.mesh.SetNormals(data.normals);
             mf.mesh.SetUVs(0, data.uvs);
-
-        }
-        if (alertNeighbors)
-        {
-            var neighbors = world.getNeighboringChunks(chunk.chunkCoords);
-            foreach (var c in neighbors)
-            {
-                remeshChunk(world, c, false);
-            }
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -294,7 +254,7 @@ public static class MeshGenerator
         generateMesh(world, chunk);
         if (chunk.renderData != null)
         {
-            if (!finishedMeshes.Replace(chunk))
+            if (!finishedMeshes.Contains(chunk))
             {
                 finishedMeshes.Push(chunk);
             }

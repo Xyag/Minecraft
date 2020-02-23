@@ -1334,8 +1334,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
-  LoadDist: 8
-  UnloadDist: 9
+  LoadDist: 4
+  UnloadDist: 5
   toLoad: 0
   saveInterval: 10
 --- !u!1 &863493401
@@ -2478,7 +2478,7 @@ PrefabInstance:
     - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
       propertyPath: MoveSpeed
-      value: 15
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
@@ -2488,7 +2488,7 @@ PrefabInstance:
     - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
       propertyPath: SprintSpeed
-      value: 30
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 6311213787349334281, guid: dbe2890140a61894ab7bf15f0cecf1da,
         type: 3}
@@ -2715,8 +2715,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MoveAccel: 50
-  MoveSpeed: 15
-  SprintSpeed: 30
+  MoveSpeed: 7
+  SprintSpeed: 15
   JumpVelocity: 7
   JumpFixDist: 0.1
   JumpTimeout: 0.05

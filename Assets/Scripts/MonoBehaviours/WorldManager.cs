@@ -56,6 +56,7 @@ public class WorldManager : MonoBehaviour
     public void LateUpdate()
     {
         //we divide the remaining frame time between spawning and unloading
+        MeshGenerator.emptyFrameBuffer(world);
         long currTime = frameTimer.ElapsedMilliseconds;
         MeshGenerator.spawnFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkLoadsPerFrame);
         currTime = frameTimer.ElapsedMilliseconds;

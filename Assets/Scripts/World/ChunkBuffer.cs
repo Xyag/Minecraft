@@ -3,53 +3,64 @@ using System.Collections.Generic;
 
 public class ChunkBuffer
 {
-    private List<Chunk> finishedMeshes;
+    private List<Chunk> buffer;
     public ChunkBuffer(int initSize)
     {
-        finishedMeshes = new List<Chunk>(initSize);
+        buffer = new List<Chunk>(initSize);
     }
     public void Push(Chunk data)
     {
-        lock (finishedMeshes)
+        lock (buffer)
         {
-            if (finishedMeshes.Count > 3000)
-                Debug.Log(finishedMeshes.Count);
-            finishedMeshes.Add(data);
+            if (buffer.Count > 3000)
+                Debug.Log(buffer.Count);
+            buffer.Add(data);
         }
     }
 
     public Chunk Pop()
     {
-        lock (finishedMeshes)
+        lock (buffer)
         {
-            var top = finishedMeshes[finishedMeshes.Count - 1];
-            finishedMeshes.RemoveAt(finishedMeshes.Count - 1);
+            var top = buffer[buffer.Count - 1];
+            buffer.RemoveAt(buffer.Count - 1);
             return top;
         }
     }
 
     public int Count()
     {
-        return finishedMeshes.Count;
+        return buffer.Count;
     }
 
     public Chunk Get(int position)
     {
-        return finishedMeshes[position];
+        return buffer[position];
+    }
+    public bool Contains(Chunk chunk)
+    {
+        for (int i = 0; i < buffer.Count; i++)
+        {
+            if (buffer[i] == chunk)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public bool Replace(Chunk toReplace)
     {
-        lock (finishedMeshes)
+        lock (buffer)
         {
-            int location = finishedMeshes.FindIndex(c => toReplace.chunkCoords == c.chunkCoords);
+            int location = buffer.FindIndex(c => toReplace.chunkCoords == c.chunkCoords);
             if (location == -1)
             {
                 return false;
             }
             else
             {
-                finishedMeshes[location] = toReplace;
+                buffer[location] = toReplace;
                 return true;
             }
         }

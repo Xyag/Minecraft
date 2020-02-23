@@ -21,4 +21,10 @@ public struct Inventory
     {
         return Item.itemData[(int)items[slot].type];
     }
+
+    public Item this[int index]
+    {
+        get { return items[index]; }
+        set { items[index] = value; }
+    }
 }

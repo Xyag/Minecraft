@@ -40,13 +40,13 @@ public class InventoryUI : MonoBehaviour
             var invSlotUI = disp.GetComponent<InventorySlotUI>();
             invSlotUI.slotNumber = i;
             invSlotUI.inventoryUI = this;
-            invSlotUI.assignItem(inventory.items[i]);
-            if (inventory.items[i].type != ItemType.empty)
+            invSlotUI.assignItem(inventory[i]);
+            if (inventory[i] != null && inventory[i].type != ItemType.empty)
             {
                 GameObject itemDisp = items.get();
                 itemDisp.transform.SetParent(disp.transform, false);
                 itemDisp.transform.localPosition = Vector3.zero;
-                itemDisp.GetComponent<Image>().sprite = Item.itemData[(int)inventory.items[i].type].sprite;
+                itemDisp.GetComponent<Image>().sprite = Item.itemData[(int)inventory[i].type].sprite;
             }
         }
     }
@@ -64,9 +64,9 @@ public class InventoryUI : MonoBehaviour
     }
     public void slotClick(int slotNum)
     {
-        Item temp = displaying.items[slotNum];
-        displaying.items[slotNum] = worldManager.cursorInventory.items[0];
-        worldManager.cursorInventory.items[0] = temp;
+        Item temp = displaying[slotNum];
+        displaying[slotNum] = worldManager.cursorInventory[0];
+        worldManager.cursorInventory[0] = temp;
         display(displaying);
     }
 }
