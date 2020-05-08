@@ -8,6 +8,7 @@ public class Chunk
     public const int BLOCK_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
     public Block[,,] blocks;
+    public Dictionary<Vector3Int, BlockInstance> instanceData;
     public Vector3Int worldCoords;
     public Vector3Int chunkCoords;
     public GameObject gameObject;

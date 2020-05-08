@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Threading.Tasks;
 using System.Collections;
 using System.Diagnostics;
+using Mirror;
 
 public class WorldManager : MonoBehaviour
 {
@@ -18,6 +19,7 @@ public class WorldManager : MonoBehaviour
 
     private long targetFrameTimeMS;
     private Stopwatch frameTimer;
+    private CommandExecutor playerCommandExecutor;
 
     public void Awake()
     {
@@ -45,10 +47,13 @@ public class WorldManager : MonoBehaviour
             wl.world = world;
             wl.player = playerEntity;
         }
-
+        playerCommandExecutor = new CommandExecutor(playerEntity, world);
         cursorInventory.items = new Item[1];
     }
-
+    public bool runCommand(string command)
+    {
+        return playerCommandExecutor.runCommand(command);
+    }
     public void Update()
     {
         frameTimer.Restart();

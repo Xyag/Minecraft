@@ -330,7 +330,10 @@ public class World
         {
             if (chunk.blocks == null)
                 chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
+            BlockType oldType = chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type;
+            Block.blockTypes[(int)oldType].onDestroy(chunkCoords * Chunk.CHUNK_SIZE + blockCoords, this);
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
+            Block.blockTypes[(int)block].onPlace(chunkCoords * Chunk.CHUNK_SIZE + blockCoords, this);
             if (updateNeighbors)
             {
                 getBlock(chunkCoords, blockCoords).onBlockUpdate(Chunk.CHUNK_SIZE * chunkCoords + blockCoords, this);

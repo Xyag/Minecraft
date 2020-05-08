@@ -280,6 +280,17 @@ public static class MeshGenerator
                 }
             }
         }
+        BlockType[,,] blocks = new BlockType[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
+        for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+        {
+            for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+            {
+                for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                {
+                    blocks[x, y, z] = chunk.blocks[x, y, z].type;
+                }
+            }
+        }
         MeshData renderData = chunk.renderData;
         List<Vector3> vertices;
         List<int> triangles;
@@ -318,7 +329,7 @@ public static class MeshGenerator
             {
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    BlockType type = blocks[x, y, z];
 
                     if (x == Chunk.CHUNK_SIZE - 1)
                     {
@@ -328,13 +339,13 @@ public static class MeshGenerator
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)chunk.blocks[x + 1, y, z].type].opaque) { meshed[0, y, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x + 1, y, z]].opaque) { meshed[0, y, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
                         meshed[0, y, z] = true;
                         int yExtent = 1;
-                        while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && chunk.blocks[x, y + yExtent, z].type == type)
+                        while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && blocks[x, y + yExtent, z] == type)
                         {
                             meshed[0, y + yExtent, z] = true;
                             yExtent++;
@@ -347,7 +358,7 @@ public static class MeshGenerator
                             //we have to check all the blocks on the edge of the rectangle now
                             for (int i = y; i <= y + yExtent; i++)
                             {
-                                if (chunk.blocks[x, i, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                if (blocks[x, i, z + zExtent] != type || meshed[0, i, z + zExtent])
                                 {
                                     goto endLoop;
                                 }
@@ -375,7 +386,7 @@ public static class MeshGenerator
             {
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    BlockType type = blocks[x, y, z];
 
                     if (x == 0)
                     {
@@ -385,13 +396,13 @@ public static class MeshGenerator
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)chunk.blocks[x - 1, y, z].type].opaque) { meshed[0, y, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x - 1, y, z]].opaque) { meshed[0, y, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
                         meshed[0, y, z] = true;
                         int yExtent = 1;
-                        while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && chunk.blocks[x, y + yExtent, z].type == type)
+                        while (y + yExtent < Chunk.CHUNK_SIZE && !meshed[0, y + yExtent, z] && blocks[x, y + yExtent, z] == type)
                         {
                             meshed[0, y + yExtent, z] = true;
                             yExtent++;
@@ -404,7 +415,7 @@ public static class MeshGenerator
                             //we have to check all the blocks on the edge of the rectangle now
                             for (int i = y; i <= y + yExtent; i++)
                             {
-                                if (chunk.blocks[x, i, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                if (blocks[x, i, z + zExtent] != type || meshed[0, i, z + zExtent])
                                 {
                                     goto endLoop;
                                 }
@@ -432,7 +443,7 @@ public static class MeshGenerator
             {
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    BlockType type = blocks[x, y, z];
 
                     if (y == Chunk.CHUNK_SIZE - 1)
                     {
@@ -442,13 +453,13 @@ public static class MeshGenerator
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y + 1, z].type].opaque) { meshed[0, x, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y + 1, z]].opaque) { meshed[0, x, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
                         meshed[0, x, z] = true;
                         int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && chunk.blocks[x + xExtent, y, z].type == type)
+                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && blocks[x + xExtent, y, z] == type)
                         {
                             meshed[0, x + xExtent, z] = true;
                             xExtent++;
@@ -461,7 +472,7 @@ public static class MeshGenerator
                             //we have to check all the blocks on the edge of the rectangle now
                             for (int i = x; i <= x + xExtent; i++)
                             {
-                                if (chunk.blocks[i, y, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                if (blocks[i, y, z + zExtent] != type || meshed[0, i, z + zExtent])
                                 {
                                     goto endLoop;
                                 }
@@ -489,7 +500,7 @@ public static class MeshGenerator
             {
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    BlockType type = blocks[x, y, z];
 
                     if (y == 0)
                     {
@@ -499,13 +510,13 @@ public static class MeshGenerator
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y - 1, z].type].opaque) { meshed[0, x, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y - 1, z]].opaque) { meshed[0, x, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
                         meshed[0, x, z] = true;
                         int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && chunk.blocks[x + xExtent, y, z].type == type)
+                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, z] && blocks[x + xExtent, y, z] == type)
                         {
                             meshed[0, x + xExtent, z] = true;
                             xExtent++;
@@ -518,7 +529,7 @@ public static class MeshGenerator
                             //we have to check all the blocks on the edge of the rectangle now
                             for (int i = x; i <= x + xExtent; i++)
                             {
-                                if (chunk.blocks[i, y, z + zExtent].type != type || meshed[0, i, z + zExtent])
+                                if (blocks[i, y, z + zExtent] != type || meshed[0, i, z + zExtent])
                                 {
                                     goto endLoop;
                                 }
@@ -546,7 +557,7 @@ public static class MeshGenerator
             {
                 for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    BlockType type = blocks[x, y, z];
 
                     if (z == Chunk.CHUNK_SIZE - 1)
                     {
@@ -556,13 +567,13 @@ public static class MeshGenerator
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y, z + 1].type].opaque) { meshed[0, x, y] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y, z + 1]].opaque) { meshed[0, x, y] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
                         meshed[0, x, y] = true;
                         int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && chunk.blocks[x + xExtent, y, z].type == type)
+                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && blocks[x + xExtent, y, z] == type)
                         {
                             meshed[0, x + xExtent, y] = true;
                             xExtent++;
@@ -575,7 +586,7 @@ public static class MeshGenerator
                             //we have to check all the blocks on the edge of the rectangle now
                             for (int i = x; i <= x + xExtent; i++)
                             {
-                                if (chunk.blocks[i, y + yExtent, z].type != type || meshed[0, i, y + yExtent])
+                                if (blocks[i, y + yExtent, z] != type || meshed[0, i, y + yExtent])
                                 {
                                     goto endLoop;
                                 }
@@ -603,7 +614,7 @@ public static class MeshGenerator
             {
                 for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                 {
-                    BlockType type = chunk.blocks[x, y, z].type;
+                    BlockType type = blocks[x, y, z];
 
                     if (z == 0)
                     {
@@ -613,13 +624,13 @@ public static class MeshGenerator
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)chunk.blocks[x, y, z - 1].type].opaque) { meshed[0, x, y] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y, z - 1]].opaque) { meshed[0, x, y] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
                         meshed[0, x, y] = true;
                         int xExtent = 1;
-                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && chunk.blocks[x + xExtent, y, z].type == type)
+                        while (x + xExtent < Chunk.CHUNK_SIZE && !meshed[0, x + xExtent, y] && blocks[x + xExtent, y, z] == type)
                         {
                             meshed[0, x + xExtent, y] = true;
                             xExtent++;
@@ -632,7 +643,7 @@ public static class MeshGenerator
                             //we have to check all the blocks on the edge of the rectangle now
                             for (int i = x; i <= x + xExtent; i++)
                             {
-                                if (chunk.blocks[i, y + yExtent, z].type != type || meshed[0, i, y + yExtent])
+                                if (blocks[i, y + yExtent, z] != type || meshed[0, i, y + yExtent])
                                 {
                                     goto endLoop; //I think this is the one time in my life that a goto is the best solution
                                 }

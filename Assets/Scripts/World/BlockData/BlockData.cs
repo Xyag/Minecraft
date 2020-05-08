@@ -17,4 +17,5 @@ public class BlockData
 
     }
     public virtual void onPlace(Vector3Int worldPos, World world) { }
+    public virtual void onDestroy(Vector3Int worldPos, World world) { }
 }

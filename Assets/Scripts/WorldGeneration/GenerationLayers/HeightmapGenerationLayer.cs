@@ -17,7 +17,6 @@ public class HeightmapGenerationLayer : IGenerationLayer
     public Chunk generateChunk(Chunk chunk, World world)
     {
         Block[,,] blocks = chunk.blocks;
-        bool rejected = true;
         for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
         {
             for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
@@ -27,7 +26,6 @@ public class HeightmapGenerationLayer : IGenerationLayer
                 {
                     chunk.blocks = new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE];
                     blocks = chunk.blocks;
-                    rejected = false;
                 }
                 if (blocks != null)
                 {
@@ -56,11 +54,6 @@ public class HeightmapGenerationLayer : IGenerationLayer
                     }
                 }
             }
-        }
-        //Debug.Log("done with chunk generation");
-        if (rejected)
-        {
-            //Debug.Log("rejecting chunk");
         }
         return chunk;
     }

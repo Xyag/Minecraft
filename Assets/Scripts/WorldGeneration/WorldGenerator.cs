@@ -84,11 +84,13 @@ public static class WorldGenerator
             cactusDensityConstant = 1,
         };
 
-        generationLayers.Add(holeyHillsGenerator);
+        generationLayers.Add(new PenishPicker());
+
+        //generationLayers.Add(holeyHillsGenerator);
         //generationLayers.Add(cactusGenerator);
-        generationLayers.Add(plainsTrees);
+        //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
-        generationLayers.Add(caveGenerator);
+        //generationLayers.Add(caveGenerator);
     }
     public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
     {
