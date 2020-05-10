@@ -29,17 +29,17 @@ public class ItemBlock : Item
             if (Mathf.Abs(usedOn.hitOffset.z) > Mathf.Abs(usedOn.hitOffset.y) && Mathf.Abs(usedOn.hitOffset.z) > Mathf.Abs(usedOn.hitOffset.x))
             {
                 //place on z axis
-                world.setBlockAndMesh(usedOn.coords + new Vector3Int(0, 0, (int)Mathf.Sign(usedOn.hitOffset.z)), blockType);
+                world.setBlock(usedOn.coords + new Vector3Int(0, 0, (int)Mathf.Sign(usedOn.hitOffset.z)), blockType);
             }
             else if (Mathf.Abs(usedOn.hitOffset.y) > Mathf.Abs(usedOn.hitOffset.x))
             {
                 //place on y axis
-                world.setBlockAndMesh(usedOn.coords + new Vector3Int(0, (int)Mathf.Sign(usedOn.hitOffset.y), 0), blockType);
+                world.setBlock(usedOn.coords + new Vector3Int(0, (int)Mathf.Sign(usedOn.hitOffset.y), 0), blockType);
             }
             else
             {
                 //place on x axis
-                world.setBlockAndMesh(usedOn.coords + new Vector3Int((int)Mathf.Sign(usedOn.hitOffset.x), 0, 0), blockType);
+                world.setBlock(usedOn.coords + new Vector3Int((int)Mathf.Sign(usedOn.hitOffset.x), 0, 0), blockType);
             }
         }
     }

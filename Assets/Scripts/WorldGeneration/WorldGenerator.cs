@@ -84,9 +84,9 @@ public static class WorldGenerator
             cactusDensityConstant = 1,
         };
 
-        generationLayers.Add(new PenishPicker());
+        //generationLayers.Add(new PenishPicker());
 
-        //generationLayers.Add(holeyHillsGenerator);
+        generationLayers.Add(holeyHillsGenerator);
         //generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
@@ -94,15 +94,15 @@ public static class WorldGenerator
     }
     public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
     {
-        List<Task<(int, Chunk)>> genTasks = new List<Task<(int, Chunk)>>(dests.Count);
+        List<Task<Chunk>> genTasks = new List<Task<Chunk>>(dests.Count);
         List<Chunk> chunks = new List<Chunk>(dests.Count);
+        List<Chunk> finishedChunks = new List<Chunk>(dests.Count);
         for (int i = 0; i < dests.Count; i++)
         {
             Chunk c = world.getChunk(dests[i]);
             if (c == null)
             {
                 c = new Chunk(null, dests[i]);
-                world.createChunk(c);
                 chunks.Add(c);
             }
         }
@@ -111,30 +111,28 @@ public static class WorldGenerator
             
             if (generationLayers[i].isSingleThreaded())
             {
-                for (int n = 0; n < chunks.Count; n++)
+                foreach (var chunk in chunks)
                 {
-                    generationLayers[i].generateChunk(chunks[n], world);
+                    generationLayers[i].generateChunk(chunk, world);
                 }
             }
             else
             {
                 genTasks.Clear();
-                for (int n = 0; n < chunks.Count; n++)
+                foreach (var chunk in chunks)
                 {
-                    Chunk chunk = chunks[n];
-                    int index = n;
-                    genTasks.Add(Task.Run(() => (index, generationLayers[i].generateChunk(chunk, world))));
+                    genTasks.Add(Task.Run(() => generationLayers[i].generateChunk(chunk, world)));
                 }
                 //process the chunks as the come in from the multiple threads.
                 while (genTasks.Count > 0)
                 {
                     var finishedTask = await Task.WhenAny(genTasks);
                     genTasks.Remove(finishedTask);
-                    chunks[finishedTask.Result.Item1] = finishedTask.Result.Item2;
+                    finishedChunks.Add(finishedTask.Result);
                 }
             }
             
         }
-        return chunks;
+        return finishedChunks;
     }
 }

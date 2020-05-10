@@ -13,6 +13,7 @@ public class Chunk
     public Vector3Int chunkCoords;
     public GameObject gameObject;
     public MeshData renderData;
+    public bool changed = true;
 
     public Chunk(Block[,,] blocks, Vector3Int chunkCoords)
     {
@@ -24,5 +25,6 @@ public class Chunk
         this.blocks = blocks;
         gameObject = null;
         renderData = null;
+        changed = true;
     }
 }

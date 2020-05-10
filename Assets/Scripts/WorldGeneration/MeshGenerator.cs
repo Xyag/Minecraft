@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,43 +8,37 @@ using System.Diagnostics;
 
 public static class MeshGenerator
 {
-    public static PhysicMaterial chunkPhysMaterial;
-    public static ChunkBuffer finishedMeshes = new ChunkBuffer(3000); //3000 cause that's probably more than we need.
-    private static List<Chunk> frameBuffer = new List<Chunk>(300);
-    public static List<Vector3Int> currentlyMeshing = new List<Vector3Int>();
+    public static ConcurrentQueue<Chunk> finishedMeshes = new ConcurrentQueue<Chunk>();
+    private static ConcurrentQueue<Chunk> frameBuffer = new ConcurrentQueue<Chunk>();
+    public static ConcurrentQueue<Chunk> remeshQueue = new ConcurrentQueue<Chunk>();
     public static Pool<GameObject> chunkPool;
     private static readonly Stopwatch stopwatch = new Stopwatch();
 
-    public static void addToFrameBuffer(Chunk chunk)
-    {
-        if (!frameBuffer.Contains(chunk))
-        {
-            lock (frameBuffer)
-            {
-                frameBuffer.Add(chunk);
-            }
-        }
-    }
     public static void emptyFrameBuffer(World world)
     {
-        lock (frameBuffer)
-        {
-            spawnAll(frameBuffer, world);
-            frameBuffer.Clear();
-        }
+        spawnAll(frameBuffer, world);
     }
     public static void spawnFromQueue(long maxTimeMS, int minSpawns)
     {
         stopwatch.Restart();
-        int chunksRemaining = finishedMeshes.Count();
+        int chunksRemaining = finishedMeshes.Count;
         int spawns = 0;
         while (chunksRemaining > 0 && (spawns < minSpawns || stopwatch.ElapsedMilliseconds < maxTimeMS))
         {
-            Chunk data = finishedMeshes.Pop();
-            spawnChunk(data);
-            chunksRemaining--;
-            spawns++;
+            if (finishedMeshes.TryDequeue(out Chunk data))
+            {
+                spawnChunk(data);
+                chunksRemaining--;
+                spawns++;
+            }
         }
+    }
+    public static void generateAndQueue(World world, Chunk chunk)
+    {
+        if (chunk == null)
+            return;
+        generateMesh(world, chunk);
+        finishedMeshes.Enqueue(chunk);
     }
     public static void spawnAll(IEnumerable<Chunk> collection, World world)
     {
@@ -53,59 +47,17 @@ public static class MeshGenerator
             Task.Run(() => generateAndQueue(world, item));
         }
     }
-    public static void spawnAll(Chunk[,,] collection, World world) //multidimensional arrays implement GetIterator() but not GetIterator<T>(). weird
-    {
-        foreach (var item in collection)
-        {
-            Task.Run(() => generateAndQueue(world, item));
-        }
-    }
-    public static void meshChunkBlockChanged(Chunk chunk, Vector3Int blockCoords, World world)
-    {
-        if (chunk == null)
-            return;
-        frameBuffer.Add(chunk);
-        Vector3Int chunkCoords = chunk.chunkCoords;
-        //check surrounding chunks
-        if (blockCoords.x == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out chunk))
-        {
-            frameBuffer.Add(chunk);
-        }
-        if (blockCoords.y == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out chunk))
-        {
-            frameBuffer.Add(chunk);
-        }
-        if (blockCoords.z == Chunk.CHUNK_SIZE - 1 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out chunk))
-        {
-            frameBuffer.Add(chunk);
-        }
-        if (blockCoords.x == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out chunk))
-        {
-            frameBuffer.Add(chunk);
-        }
-        if (blockCoords.y == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out chunk))
-        {
-            frameBuffer.Add(chunk);
-        }
-        if (blockCoords.z == 0 && world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out chunk))
-        {
-            frameBuffer.Add(chunk);
-        }
-    }
     public static void spawnChunk(Chunk chunk)
     {
-        if (chunk == null)
+        if (chunk == null || chunk.renderData == null)
             return;
         var data = chunk.renderData;
         var chunkObject = chunk.gameObject;
         if (chunkObject == null)
         {
+            UnityEngine.Debug.Log("chunk spawned");
             chunkObject = chunkPool.get();
             chunk.gameObject = chunkObject;
-        }
-        if (data == null)
-        {
-            return;
         }
         chunkObject.name = (data.worldPos / Chunk.CHUNK_SIZE).ToString();
         chunkObject.transform.position = data.worldPos;
@@ -124,6 +76,7 @@ public static class MeshGenerator
             mf.mesh.SetNormals(data.normals);
             mf.mesh.SetUVs(0, data.uvs);
         }
+        chunk.changed = false;
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void posXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -239,31 +192,6 @@ public static class MeshGenerator
         uvs.Add(new Vector3(0, 0, texId));
     }
 
-    public static void generateAndQueue(World world, Chunk chunk)
-    {
-        if (chunk == null)
-            return;
-        lock (currentlyMeshing)
-        {
-            if (currentlyMeshing.Contains(chunk.chunkCoords))
-            {
-                return;
-            }
-            currentlyMeshing.Add(chunk.chunkCoords);
-        }
-        generateMesh(world, chunk);
-        if (chunk.renderData != null)
-        {
-            if (!finishedMeshes.Contains(chunk))
-            {
-                finishedMeshes.Push(chunk);
-            }
-        }
-        lock (currentlyMeshing)
-        {
-            currentlyMeshing.Remove(chunk.chunkCoords);
-        }
-    }
     public static Chunk generateMesh(World world, Chunk chunk)
     {
         if (chunk == null || chunk.blocks == null)

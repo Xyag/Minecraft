@@ -1,22 +1,22 @@
 ﻿using UnityEngine;
+using Mirror;
 
-public class PlayerManager : MonoBehaviour
+public class PlayerManager : NetworkBehaviour
 {
+    public static NetworkIdentity playerIdentity;
+    public static PlayerManager singleton;
     public Entity Player;
     public InventoryUI inventoryUI;
     public GameObject blockHighlight;
     public WorldManager worldManager;
     private bool inventoryOpen = false;
 
-    public void Start()
-    {
-        Player.inventory.items = new Item[10];
-        Player.inventory[1] = new ItemMinishark(ItemType.minishark, 1);
-        Player.inventory[2] = new Item(ItemType.bullet, 10);
-        Player.inventory[0] = new ItemBlock(BlockType.tnt, 999);
-    }
     public void Update()
     {
+        if (Player == null)
+        {
+            return;
+        }
         var hit = worldManager.world.raycast(transform.position, transform.forward, 10);
         blockHighlight.SetActive(hit.hit);
         blockHighlight.transform.position = hit.coords;
@@ -36,7 +36,7 @@ public class PlayerManager : MonoBehaviour
         }
         if (Input.GetMouseButtonDown(0))
         {
-            worldManager.world.setBlockAndMesh(hit.coords, BlockType.empty);
+            worldManager.SendRequestSetBlock(playerIdentity, hit.coords, BlockType.empty);
         }
         if (Input.GetMouseButtonDown(1))
         {
@@ -55,4 +55,5 @@ public class PlayerManager : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;
     }
+
 }

@@ -47,7 +47,7 @@ public class FlyingBlock : Entity
     }
     public void place()
     {
-        world.setBlockAndMesh(new Vector3Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y), Mathf.RoundToInt(transform.position.z)), blockType, false);
+        world.setBlock(new Vector3Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y), Mathf.RoundToInt(transform.position.z)), blockType);
         Disable();
     }
     public void setType(BlockType type)

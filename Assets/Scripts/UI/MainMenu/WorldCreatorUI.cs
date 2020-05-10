@@ -14,7 +14,8 @@ public class WorldCreatorUI : MonoBehaviour
 
     public void Start()
     {
-        worldNameInput.onValueChanged.AddListener(fieldValueChanged);
+        worldNameInput.onValueChanged.AddListener(fieldValueChanged); //for some reason this throws a null reference exception even though its assigned in the editor.
+        //then the function runs again (due to the error im assuming) idk why. no idea why there's an error either.
         path = Application.persistentDataPath + "/";
         createButton.onClick.AddListener(() =>
         {
@@ -24,7 +25,7 @@ public class WorldCreatorUI : MonoBehaviour
     }
     public void fieldValueChanged(string val)
     {
-        if (Directory.Exists(path + val))
+        if (val != null && Directory.Exists(path + val))
         {
             WorldExistsLabel.SetActive(true);
             createButton.interactable = false;

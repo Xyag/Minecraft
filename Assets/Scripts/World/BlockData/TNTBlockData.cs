@@ -17,6 +17,6 @@ public class TNTBlockData : BlockData
         var tntScript = tntObject.GetComponent<TNTEntity>();
         tntScript.explosionStrength = explosionStrength;
         tntScript.timeToDetonate = fuseLength + Random.Range(-fuseVariance, fuseVariance);
-        world.setBlockAndMesh(worldPos, BlockType.empty);
+        world.setBlock(worldPos, BlockType.empty);
     }
 }

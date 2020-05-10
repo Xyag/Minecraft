@@ -10,7 +10,7 @@ public class FallingBlockData : BlockData
     {
         if (!world.getBlock(new Vector3Int(worldPos.x, worldPos.y - 1, worldPos.z)).fullCollision)
         {
-            world.setBlockAndMesh(worldPos, BlockType.empty, true);
+            world.setBlock(worldPos, BlockType.empty, true);
             GameObject flyingBlock = world.spawnEntity(EntityType.flyingBlock, worldPos, Vector3.zero);
             flyingBlock.GetComponent<FlyingBlock>().setType(type);
         }

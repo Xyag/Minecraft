@@ -13,6 +13,8 @@ GameObject:
   - component: {fileID: 2227253350055899130}
   - component: {fileID: 2993507931842935781}
   - component: {fileID: -7821211553926264942}
+  - component: {fileID: 969804746285533498}
+  - component: {fileID: 2615889749143457341}
   m_Layer: 0
   m_Name: TNTEntity
   m_TagString: Untagged
@@ -99,10 +101,8 @@ MonoBehaviour:
   extents: {x: 0.45, y: 0.45, z: 0.45}
   friction: 0.5
   hitDirections: 000000000000
-  other: {x: 0, y: 0, z: 0}
   health: 0
   type: 1
-  physics: {fileID: 0}
   startVelocity: {x: 0, y: 3, z: 0}
   timeToDetonate: 2
   explosionStrength: 8
@@ -170,3 +170,37 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_ShadowRadius: 0
   m_ShadowAngle: 0
+--- !u!114 &969804746285533498
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2170946847389907774}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneId: 0
+  serverOnly: 0
+  m_AssetId: 
+  hasSpawned: 0
+--- !u!114 &2615889749143457341
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2170946847389907774}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f74aedd71d9a4f55b3ce499326d45fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncMode: 0
+  syncInterval: 0.1
+  clientAuthority: 0
+  localPositionSensitivity: 0.01
+  localRotationSensitivity: 0.01
+  localScaleSensitivity: 0.01

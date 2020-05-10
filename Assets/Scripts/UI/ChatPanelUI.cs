@@ -56,7 +56,7 @@ public class ChatPanelUI : MonoBehaviour
     public void onSend()
     {
         string text = textBox.text;
-        if (worldManager.runCommand(text))
+        if (worldManager.runGameCommand(text))
         {
             return;
         }

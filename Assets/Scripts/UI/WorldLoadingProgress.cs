@@ -31,7 +31,7 @@ public class WorldLoadingProgress : MonoBehaviour
         }
         else
         {
-            int meshCount = MeshGenerator.finishedMeshes.Count();
+            int meshCount = MeshGenerator.finishedMeshes.Count;
             if (!running && meshCount > 0)
             {
                 running = true;

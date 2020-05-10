@@ -18,7 +18,7 @@ public class CommandExecutor
         this.world = world;
     }
 
-    public bool runCommand(string line)
+    public bool runGameCommand(string line)
     {
         string[] args = line.Split(' ');
         if (args.Length < 1)

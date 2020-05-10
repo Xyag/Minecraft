@@ -16,6 +16,8 @@ public class SunFollower : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Following == null)
+            return;
         transform.position = Following.position;
         transform.rotation = Sun.rotation;
         transform.Translate(Vector3.back * Distance, Space.Self);

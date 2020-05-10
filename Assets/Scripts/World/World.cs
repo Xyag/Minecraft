@@ -1,63 +1,71 @@
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using UnityEngine;
 using System.IO;
+using Mirror;
 
 public class World
 {
     const float EXPLOSION_PARTICLES_SCALE = 0.125f;
+    public static readonly int ConcurrencyLevel = System.Environment.ProcessorCount * 2;
 
-    public ChunkBuffer unloadChunkBuffer = new ChunkBuffer(1000);
+    public readonly ConcurrentDictionary<Vector3Int, Chunk> unloadChunkBuffer = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1000);//1000 is arbitrary, doesn't really matter.
 
-    public Dictionary<Vector3Int, Chunk> loadedChunks = new Dictionary<Vector3Int, Chunk>();
-    public Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
-    public List<Entity> loadedEntities = new List<Entity>();
+    public readonly ConcurrentDictionary<Vector3Int, Chunk> loadedChunks = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1000); //1000 is arbitrary, doesn't really matter.
+    public readonly Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
+    public readonly Dictionary<NetworkConnection, Entity> players;
+    public readonly List<Entity> loadedEntities = new List<Entity>();
     public readonly string savePath;
     public readonly string name;
     public readonly Vector3Int worldRadius;
     public readonly bool infinite;
-    private readonly ChunkSerializer chunkSerializer;
-    public GameObject explosionParticles
-    {
-        set
-        {
-            explosionParticlesPool = Pool<GameObject>.createEntityPool(value, this);
-        }
-    }
+    private readonly System.Diagnostics.Stopwatch unloadStopwatch = new System.Diagnostics.Stopwatch();
+    private readonly Pool<GameObject> explosionParticlesPool;
 
-    public World(string savePath, string name, GameObject explosionParticles)
+    public readonly bool isServer;
+    public readonly NetworkConnection connection;
+
+    public World(string savePath, string name, GameObject explosionParticles, bool isServer)
     {
-        this.savePath = savePath;
-        chunkSerializer = new ChunkSerializer(savePath);
-        chunkSerializer.updateWorldInfo(new WorldInfo { fileName = name, lastPlayed = System.DateTime.Now });
-        this.explosionParticles = explosionParticles;
-        worldRadius = new Vector3Int(3, 3, 3);
+        if (isServer)
+        {
+            this.savePath = savePath;
+            ChunkSerializer.updateWorldInfo(new WorldInfo { fileName = name, lastPlayed = System.DateTime.Now });
+            if (!Directory.Exists(savePath))
+            {
+                Directory.CreateDirectory(savePath);
+            }
+            ChunkSerializer.savePath = savePath;
+            players = new Dictionary<NetworkConnection, Entity>();
+        }
+        
+        explosionParticlesPool = Pool<GameObject>.createEntityPool(explosionParticles, this);
         infinite = true;
+        this.isServer = isServer;
     }
     public void saveAll()
     {
+        if (!isServer)
+        {
+            Debug.LogError("trying to save the world but i'm not the server!");
+            return;
+        }
         if (!Directory.Exists(savePath))
         {
             Directory.CreateDirectory(savePath);
         }
         List<Chunk> toSave = new List<Chunk>(loadedChunks.Values.Count);
-        lock (loadedChunks)
+        foreach (var chunk in loadedChunks.Values)
         {
-            foreach(var chunk in loadedChunks.Values)
-            {
-                toSave.Add(chunk);
-            }
+            toSave.Add(chunk);
         }
-        foreach(var chunk in toSave)
+        foreach (var chunk in toSave)
         {
-            chunkSerializer.writeChunk(chunk);
+            ChunkSerializer.writeChunkToFile(chunk);
         }
     }
 
-
-
-    private System.Diagnostics.Stopwatch unloadStopwatch = new System.Diagnostics.Stopwatch();
-    private Pool<GameObject> explosionParticlesPool;
     public bool chunkInBounds(Vector3Int coords)
     {
         if (infinite) return true;
@@ -65,15 +73,26 @@ public class World
     }
     public GameObject spawnEntity(EntityType type, Vector3 position, Vector3 velocity)
     {
+        if (!isServer)
+        {
+            Debug.LogError("trying to spawn entity but i'm not the server!");
+            return null;
+        }
         var go = entityTypes[type].get();
         go.transform.position = position;
         Entity e = go.GetComponent<Entity>();
         e.initialize(this);
         e.velocity = velocity;
+        NetworkServer.Spawn(go);
         return go;
     }
     public void createExplosion(float explosionStrength, Vector3Int origin)
     {
+        if (!isServer)
+        {
+            Debug.LogError("trying to create explosion but i'm not the server");
+            return;
+        }
         int currInterval = 0;
         int size = Mathf.CeilToInt(explosionStrength);
         int csize = Mathf.CeilToInt((float)size / (float)Chunk.CHUNK_SIZE);
@@ -91,33 +110,12 @@ public class World
                         {
                             currBlock.interact(blockPos + origin, this);
                         }
-                        setBlockAndMesh(blockPos + origin, BlockType.empty, updateNeighbors: true);
+                        setBlock(blockPos + origin, BlockType.empty);
                         currInterval++;
                     }
                 }
             }
         }
-        /*Vector3Int chunkPos = WorldToChunkCoords(origin);
-        List<Chunk> remeshQueue = new List<Chunk>(csize * csize * csize * 5);
-        for (int x = -csize; x <= csize; x++)
-        {
-            for (int y = -csize; y <= csize; y++)
-            {
-                for (int z = -csize; z <= csize; z++)
-                {
-                    if (x * x + y * y + z * z <= (csize + 1) * (csize + 1))
-                    {
-                        var chunk = getChunk(chunkPos + new Vector3Int(x, y, z));
-                        if (chunk != null)
-                            remeshQueue.Add(chunk);
-                    }
-                }
-            }
-        }
-        foreach (var chunk in remeshQueue)
-        {
-            MeshGenerator.addToFrameBuffer(chunk);
-        }*/
         foreach (var en in loadedEntities)
         {
             if (en != null && Vector3.SqrMagnitude(en.transform.position - (Vector3)origin) < explosionStrength * explosionStrength)
@@ -128,125 +126,140 @@ public class World
         var explo = explosionParticlesPool.get();
         explo.transform.localScale = explosionStrength * EXPLOSION_PARTICLES_SCALE * Vector3.one;
         explo.transform.position = origin;
+        NetworkServer.Spawn(explo);
     }
     public void unloadFromQueue(long maxTimeMS, int minUnloads)
     {
         lock (unloadChunkBuffer)
         {
             unloadStopwatch.Restart();
-            int chunksRemaining = unloadChunkBuffer.Count();
+            int chunksRemaining = unloadChunkBuffer.Count;
             int unloads = 0;
+            var enumerator = unloadChunkBuffer.Keys.GetEnumerator();
             while (chunksRemaining > 0 && (unloads < minUnloads || unloadStopwatch.ElapsedMilliseconds < maxTimeMS))
             {
-                Chunk data = unloadChunkBuffer.Pop();
-                unloadChunk(data);
-                chunksRemaining--;
-                unloads++;
+                if (unloadChunkBuffer.TryRemove(enumerator.Current, out Chunk data))
+                {
+                    unloadChunk(data);
+                    chunksRemaining--;
+                    unloads++;
+                }
+                enumerator.MoveNext();
             }
         }
     }
     //returns true if the chunk successfully loaded (so it needs to be meshed)
     public bool loadChunkFromFile(Vector3Int coords)
     {
+        if (!isServer)
+        {
+            Debug.LogError("loading chunk from file but i'm not the server!");
+            return false;
+        }
         if (!chunkInBounds(coords))
             return false;
-        lock (loadedChunks)
+        if (loadedChunks.ContainsKey(coords))
         {
-            if (loadedChunks.ContainsKey(coords))
+            Debug.Log("loading already loaded chunk");
+            return false;
+        }
+        else
+        {
+            Chunk read = ChunkSerializer.readChunk(coords);
+            if (read != null)
             {
-                Debug.Log("loading already loaded chunk");
-                return false;
-            }
-            else
-            {
-                Chunk read = chunkSerializer.readChunk(coords);
-                if (read != null)
-                {
-                    loadedChunks.Add(coords, read);
-                }
+                loadedChunks.TryAdd(coords, read);
             }
         }
+
         return false;
+    }
+    //called on the client when a chunk is recieved from the server
+    public Chunk recieveChunk(ChunkMessage message)
+    {
+        Debug.Log("recieved " + message.chunk);
+        return loadedChunks.AddOrUpdate(message.chunk.chunkCoords, message.chunk, (key, old) => {
+            message.chunk.gameObject = old.gameObject;
+            message.chunk.changed = true;
+            return message.chunk;
+        });
     }
     public void createChunk(Chunk c)
     {
         if (!chunkInBounds(c.chunkCoords))
             return;
-        lock (loadedChunks)
-        {
-            if (!loadedChunks.TryGetValue(c.chunkCoords, out Chunk temp))
-                loadedChunks.Add(c.chunkCoords, c);
-            else
-                Debug.Log("creating already loaded chunk");
-        }
+        loadedChunks.TryAdd(c.chunkCoords, c);
     }
     public void unloadChunk(Chunk chunk)
     {
-        lock (loadedChunks)
+        if (loadedChunks.TryRemove(chunk.chunkCoords, out Chunk c))
         {
-            if (chunk.gameObject != null)
-            {
-                chunk.gameObject.SetActive(false);
-            }
-            loadedChunks.Remove(chunk.chunkCoords);
+            c.gameObject.SetActive(false);
         }
-        lock (chunkSerializer)
+        if (isServer)
         {
-            chunkSerializer.writeChunk(chunk);
+            ChunkSerializer.writeChunkToFile(chunk);
         }
     }
     public void unloadChunk(Vector3Int coords)
     {
-        Chunk chunk = null;
-        lock (loadedChunks)
+        if (loadedChunks.TryGetValue(coords, out Chunk chunk))
         {
-            chunk = loadedChunks[coords];
+            unloadChunk(chunk);
         }
-        unloadChunk(chunk);
     }
-    public async Task getChunks(List<Vector3Int> coords, List<Chunk> output)
+    public async Task generateChunks(List<Vector3Int> coords)
     {
+        if (!isServer)
+        {
+            Debug.LogError("tried to generate chunks but i'm not the server!");
+            return;
+        }
         List<Vector3Int> toGenerate = new List<Vector3Int>();
         foreach (var pos in coords)
         {
             Chunk temp = getChunk(pos);
             if (temp == null)
+            {
                 toGenerate.Add(pos);
-            else
-                output.Add(temp);
+            }
         }
-        List<Chunk> generated = await WorldGenerator.generateList(this, toGenerate);
-        foreach (Chunk c in generated)
+       List<Chunk> chunks = await WorldGenerator.generateList(this, toGenerate);
+       foreach (Chunk c in chunks)
         {
-            output.Add(c);
+            loadedChunks.AddOrUpdate(c.chunkCoords, c, (key, oldval) => c);
         }
     }
+    //if called from a client and the client has to request the chunk, return null
     public Chunk getChunk(Vector3Int chunkCoords)
     {
         if (!chunkInBounds(chunkCoords))
             return null;
-        Chunk chunk;
-        lock (loadedChunks)
+        if (loadedChunks.TryGetValue(chunkCoords, out Chunk chunk))
         {
-            if (loadedChunks.TryGetValue(chunkCoords, out chunk))
+            return chunk;
+        }
+        if (isServer)
+        {
+            if ((chunk = ChunkSerializer.readChunk(chunkCoords)) != null)
             {
+                loadedChunks.TryAdd(chunkCoords, chunk);
                 return chunk;
             }
-        }
-        if ((chunk = chunkSerializer.readChunk(chunkCoords)) != null)
-        {
-            lock (loadedChunks)
+            else
             {
-                loadedChunks.Add(chunkCoords, chunk);
+                return null;
             }
-            return chunk;
         }
         else
         {
+            Debug.Log("requested form get chunk");
+            WorldManager.singleton.SendRequestChunk(chunkCoords);
             return null;
         }
 
     }
+
     public Vector3Int WorldToChunkCoords(Vector3 worldCoords)
     {
         return WorldToChunkCoords(new Vector3Int((int)worldCoords.x, (int)worldCoords.y, (int)worldCoords.z));
@@ -273,37 +286,39 @@ public class World
     {
         List<Chunk> neighbors = new List<Chunk>(6);
         Chunk temp;
-        lock (loadedChunks)
+        if (loadedChunks.TryGetValue(coords + new Vector3Int(1, 0, 0), out temp))
         {
-            if (loadedChunks.TryGetValue(coords + new Vector3Int(1, 0, 0), out temp))
-            {
-                neighbors.Add(temp);
-            }
-            if (loadedChunks.TryGetValue(coords + new Vector3Int(-1, 0, 0), out temp))
-            {
-                neighbors.Add(temp);
-            }
-            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 1, 0), out temp))
-            {
-                neighbors.Add(temp);
-            }
-            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, -1, 0), out temp))
-            {
-                neighbors.Add(temp);
-            }
-            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, 1), out temp))
-            {
-                neighbors.Add(temp);
-            }
-            if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, -1), out temp))
-            {
-                neighbors.Add(temp);
-            }
+            neighbors.Add(temp);
+        }
+        if (loadedChunks.TryGetValue(coords + new Vector3Int(-1, 0, 0), out temp))
+        {
+            neighbors.Add(temp);
+        }
+        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 1, 0), out temp))
+        {
+            neighbors.Add(temp);
+        }
+        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, -1, 0), out temp))
+        {
+            neighbors.Add(temp);
+        }
+        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, 1), out temp))
+        {
+            neighbors.Add(temp);
+        }
+        if (loadedChunks.TryGetValue(coords + new Vector3Int(0, 0, -1), out temp))
+        {
+            neighbors.Add(temp);
         }
         return neighbors;
     }
     public Chunk setBlock(Vector3Int worldCoords, BlockType block, bool forceLoadChunk = false, bool updateNeighbors = false)
     {
+        if (!isServer)
+        {
+            Debug.LogError("i'm trying to setBlock but i'm not the server!");
+            return null;
+        }
         Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);
         Vector3Int blockCoords = new Vector3Int(worldCoords.x % Chunk.CHUNK_SIZE, worldCoords.y % Chunk.CHUNK_SIZE, worldCoords.z % Chunk.CHUNK_SIZE);
         if (blockCoords.x < 0)
@@ -325,6 +340,11 @@ public class World
     }
     public Chunk setBlock(Vector3Int chunkCoords, Vector3Int blockCoords, BlockType block, bool forceLoadChunk = false, bool updateNeighbors = false)
     {
+        if (!isServer)
+        {
+            Debug.LogError("i'm trying to setBlock but i'm not the server!");
+            return null;
+        }
         Chunk chunk = getChunk(chunkCoords);
         if (chunk != null)
         {
@@ -339,6 +359,7 @@ public class World
                 getBlock(chunkCoords, blockCoords).onBlockUpdate(Chunk.CHUNK_SIZE * chunkCoords + blockCoords, this);
                 updateNeighborBlocks(chunkCoords*Chunk.CHUNK_SIZE + blockCoords);
             }
+            chunk.changed = true;
             return chunk;
         }
         else if (forceLoadChunk)
@@ -359,32 +380,8 @@ public class World
         getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z + 1)).onBlockUpdate(new Vector3Int(worldPos.x, worldPos.y, worldPos.z + 1), this);
         getBlock(new Vector3Int(worldPos.x, worldPos.y, worldPos.z - 1)).onBlockUpdate(new Vector3Int(worldPos.x, worldPos.y, worldPos.z - 1), this);
     }
-    //force loads
-    public void setBlockAndMesh(Vector3Int worldCoords, BlockType block, bool updateNeighbors = true)
-    {
-        Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);
-        Vector3Int blockCoords = new Vector3Int(worldCoords.x % Chunk.CHUNK_SIZE, worldCoords.y % Chunk.CHUNK_SIZE, worldCoords.z % Chunk.CHUNK_SIZE);
-        if (blockCoords.x < 0)
-        {
-            chunkCoords.x -= 1;
-            blockCoords.x += Chunk.CHUNK_SIZE;
-        }
-        if (blockCoords.y < 0)
-        {
-            chunkCoords.y -= 1;
-            blockCoords.y += Chunk.CHUNK_SIZE;
-        }
-        if (blockCoords.z < 0)
-        {
-            chunkCoords.z -= 1;
-            blockCoords.z += Chunk.CHUNK_SIZE;
-        }
-        Chunk chunk = setBlock(chunkCoords, blockCoords, block, true, updateNeighbors);
-        MeshGenerator.meshChunkBlockChanged(chunk, blockCoords, this);
-    }
     
     //returns chunk_border if the chunk doesn't exist
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public BlockData getBlock(Vector3Int worldCoords)
     {
         Vector3Int chunkCoords = new Vector3Int(worldCoords.x / Chunk.CHUNK_SIZE, worldCoords.y / Chunk.CHUNK_SIZE, worldCoords.z / Chunk.CHUNK_SIZE);
@@ -407,7 +404,6 @@ public class World
         return getBlock(chunkCoords, blockCoords);
     }
     //returns chunk_border if the chunk doesn't exist
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public BlockData getBlock(Vector3Int chunkCoords, Vector3Int blockCoords)
     {
         if (loadedChunks.TryGetValue(chunkCoords, out Chunk chunk))
