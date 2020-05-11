@@ -98,7 +98,7 @@ public static class WorldGenerator
             maxTreeHeight = 30,
             minTreeHeight = 5,
             treeDensity = 5,
-            treeDensityConstant = 6
+            treeDensityConstant = 1
         };
 
 
@@ -106,26 +106,15 @@ public static class WorldGenerator
         //generationLayers.Add(new PenishPicker());
 
         generationLayers.Add(crazyGenerator);
-        //generationLayers.Add(crazyTrees);
+        generationLayers.Add(crazyTrees);
         //generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
         //generationLayers.Add(caveGenerator);
     }
-    public static async Task<List<Chunk>> generateList(World world, List<Vector3Int> dests)
+    public static async Task generateList(World world, List<Chunk> chunks)
     {
-        List<Task<Chunk>> genTasks = new List<Task<Chunk>>(dests.Count);
-        List<Chunk> chunks = new List<Chunk>(dests.Count);
-        List<Chunk> finishedChunks = new List<Chunk>(dests.Count);
-        for (int i = 0; i < dests.Count; i++)
-        {
-            Chunk c = world.getChunk(dests[i]);
-            if (c == null)
-            {
-                c = new Chunk(null, dests[i]);
-                chunks.Add(c);
-            }
-        }
+        List<Task<Chunk>> genTasks = new List<Task<Chunk>>(chunks.Count);
         for (int i = 0; i < generationLayers.Count; i++)
         {
             
@@ -148,11 +137,14 @@ public static class WorldGenerator
                 {
                     var finishedTask = await Task.WhenAny(genTasks);
                     genTasks.Remove(finishedTask);
-                    finishedChunks.Add(finishedTask.Result);
                 }
             }
             
         }
-        return finishedChunks;
+    }
+    //interoplates pos in the unit square where the corners have the values provided by the arguments
+    public static float bilinearInterpolate(Vector2 pos, float botLeft, float topLeft, float topRight, float botRight)
+    {
+        return botLeft * (1 - pos.x) * (1 - pos.y) + botRight * pos.x * (1 - pos.y) + topLeft * (1 - pos.x) * pos.y + topRight * pos.x * pos.y;
     }
 }

@@ -214,20 +214,18 @@ public class World
             Debug.LogError("tried to generate chunks but i'm not the server!");
             return;
         }
-        List<Vector3Int> toGenerate = new List<Vector3Int>();
+        List<Chunk> toGenerate = new List<Chunk>();
         foreach (var pos in coords)
         {
             Chunk temp = getChunk(pos);
             if (temp == null)
             {
-                toGenerate.Add(pos);
+                temp = new Chunk(null, pos);
+                createChunk(temp);
+                toGenerate.Add(temp);
             }
         }
-       List<Chunk> chunks = await WorldGenerator.generateList(this, toGenerate);
-       foreach (Chunk c in chunks)
-        {
-            loadedChunks.AddOrUpdate(c.chunkCoords, c, (key, oldval) => c);
-        }
+       await WorldGenerator.generateList(this, toGenerate);
     }
     //if called from a client and the client has to request the chunk, return null
     public Chunk getChunk(Vector3Int chunkCoords)

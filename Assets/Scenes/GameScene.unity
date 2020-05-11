@@ -2005,8 +2005,8 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0.1
   player: {fileID: 0}
-  LoadDist: 4
-  UnloadDist: 5
+  LoadDist: 6
+  UnloadDist: 7
   toLoad: 0
   saveInterval: 10
   chunkLoadInterval: 1

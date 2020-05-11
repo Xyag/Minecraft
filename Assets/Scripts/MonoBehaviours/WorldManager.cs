@@ -138,7 +138,11 @@ public class WorldManager : NetworkBehaviour
     [Server]
     public void OnChunkRequested(RequestChunkMessage message)
     {
-        message.client.connectionToClient.Send(new ChunkMessage(world.getChunk(message.position), message.position, world.validChunkRequest(message.client.transform.position, message.position, wl )));
+        bool valid = world.validChunkRequest(message.client.transform.position, message.position, wl);
+        if (valid)
+        {
+            message.client.connectionToClient.Send(new ChunkMessage(world.getChunk(message.position), message.position, valid));
+        }
     }
     [Server]
     public void OnSetBlock(SetBlockMessage message)

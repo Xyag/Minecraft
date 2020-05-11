@@ -168,15 +168,6 @@ public class WorldLoader : NetworkBehaviour
     }
     private void loadAll(List<Vector3Int> positions)
     {
-        int extras = 0;
-        foreach (var pos in positions)
-        {
-            if (world.loadedChunks.ContainsKey(pos))
-            {
-                extras++;
-            }
-        }
-        Debug.Log("loading " + positions.Count + " chunks (" + extras + " extras).");
         if (NetworkServer.active)
         {
             Task.Run(() => world.generateChunks(positions));
