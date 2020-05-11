@@ -63,8 +63,8 @@ public static class WorldGenerator
         var plainsTrees = new TreeGenerationLayer
         {
             treeDensity = 2,
-            minHeight = 5,
-            maxHeight = 12
+            minTreeHeight = 5,
+            maxTreeHeight = 12
         };
         var mountainsGenerator = new MountainGenerationLayer
         {
@@ -83,10 +83,30 @@ public static class WorldGenerator
             cactusDensity = 1,
             cactusDensityConstant = 1,
         };
+        var crazyGenerator = new HeightmapGenerationLayer
+        {
+            heightNoise = new NoiseGroup(3, 0.005f, 5.0f, 64, 0.6f),
+            heightOffset = 16,
+            topBlock = BlockType.grass,
+            midBlock = BlockType.dirt,
+            underGroundBlock = BlockType.stone,
+            midDepth = 10,
+            waterLevel = 10,
+        };
+        var crazyTrees = new TreeGenerationLayer
+        {
+            maxTreeHeight = 30,
+            minTreeHeight = 5,
+            treeDensity = 5,
+            treeDensityConstant = 6
+        };
+
+
 
         //generationLayers.Add(new PenishPicker());
 
-        generationLayers.Add(holeyHillsGenerator);
+        generationLayers.Add(crazyGenerator);
+        //generationLayers.Add(crazyTrees);
         //generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);

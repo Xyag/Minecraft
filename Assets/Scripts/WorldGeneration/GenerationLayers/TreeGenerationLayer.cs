@@ -3,18 +3,45 @@ using UnityEngine;
 
 public class TreeGenerationLayer : IGenerationLayer
 {
-    public int maxHeight = 10;
-    public int minHeight = 3;
+    public int maxTreeHeight = 10;
+    public int minTreeHeight = 3;
+
     public float treeDensity = 4;
     public float treeDensityConstant = 0;
     private FastNoise noise = new FastNoise();
     public bool isSingleThreaded()
     {
-        return true;
+        return false;
     }
     public Chunk generateChunk(Chunk chunk, World world)
     {
-        int treeCount = (int)(treeDensityConstant + treeDensity * Mathf.PerlinNoise((float)chunk.chunkCoords.x * 2.355f, (float)chunk.chunkCoords.z * 2.355f));
+        if (chunk.blocks == null)
+            return chunk;
+        Vector2Int treeLocation = new Vector2Int(5, 5);
+        bool set = false;
+        if (chunk.worldCoords.y > -33)
+        {
+            int high;
+            for (high = Chunk.CHUNK_SIZE - 1; high >= 0; high--)
+            {
+                var data = Block.blockTypes[(int)chunk.blocks[treeLocation.x, high, treeLocation.y].type];
+                if (data.opaque)
+                {
+                    set = true;
+                    break;
+                }
+            }
+            if (set)
+            {
+                for (int i = high; i < Chunk.CHUNK_SIZE; i++)
+                {
+                    //chunk.blocks[treeLocation.x, i, treeLocation.y].type = BlockType.log;
+                    world.setBlock(chunk.chunkCoords, new Vector3Int(treeLocation.x, i, treeLocation.y), BlockType.log, false);
+                }
+            }
+        }
+        return chunk;
+        /*int treeCount = (int)(treeDensityConstant + treeDensity * Mathf.PerlinNoise((float)chunk.chunkCoords.x * 2.355f, (float)chunk.chunkCoords.z * 2.355f));
         if (chunk.worldCoords.y > -33)
         {
             int cacCount = (int)(treeDensityConstant + treeDensity * noise.GetSimplex(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z));
@@ -66,6 +93,6 @@ public class TreeGenerationLayer : IGenerationLayer
             }
         }
 
-        return chunk;
+        return chunk;*/
     }
 }

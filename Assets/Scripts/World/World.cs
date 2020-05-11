@@ -365,6 +365,7 @@ public class World
             chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], chunkCoords);
             createChunk(chunk);
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
+            loadedChunks.TryAdd(chunk.chunkCoords, chunk);
             return chunk;
         }
         return null;
