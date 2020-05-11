@@ -7,14 +7,20 @@ public class PlayerManager : NetworkBehaviour
     public static PlayerManager singleton;
     public Entity Player;
     public InventoryUI inventoryUI;
+    public CloseableUIPanel pauseMenu;
     public GameObject blockHighlight;
     public WorldManager worldManager;
-    private bool inventoryOpen = false;
 
     public void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            //doing this up here so that the server can use the pause menu.
+            pauseMenu.toggle();
+        }
         if (Player == null)
         {
+            Cursor.lockState = CursorLockMode.None;
             return;
         }
         var hit = worldManager.world.raycast(transform.position, transform.forward, 10);
@@ -22,15 +28,12 @@ public class PlayerManager : NetworkBehaviour
         blockHighlight.transform.position = hit.coords;
         if (Input.GetKeyDown(KeyCode.E))
         {
-            inventoryOpen = !inventoryOpen;
-            if (inventoryOpen)
+            if (inventoryUI.Open)
             {
-                Cursor.lockState = CursorLockMode.None;
                 inventoryUI.display(Player.inventory);
             }
             else
             {
-                Cursor.lockState = CursorLockMode.Locked;
                 inventoryUI.close();
             }
         }
@@ -49,7 +52,18 @@ public class PlayerManager : NetworkBehaviour
                 Player.inventory[0].onUse(Player, transform.forward, hit, worldManager.world);
             }
         }
-        
+        if (anythingOpen())
+        {
+            Cursor.lockState = CursorLockMode.None;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+    }
+    private bool anythingOpen()
+    {
+        return pauseMenu.Open || inventoryUI.Open;
     }
     public void finishedLoading()
     {

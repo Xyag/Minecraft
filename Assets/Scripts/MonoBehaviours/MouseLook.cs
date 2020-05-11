@@ -54,7 +54,7 @@ public class MouseLook : MonoBehaviour
 
     void Start()
     {
-        originalRotation = transform.localRotation;
+        originalRotation = Quaternion.Euler(0,0,0);
     }
 
     public static float ClampAngle(float angle, float min, float max)

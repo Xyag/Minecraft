@@ -13,7 +13,7 @@ public class AssignPlayer : MonoBehaviour
     {
         SunFollower.Following = player.transform;
         MoonFollower.Following = player.transform;
-        MainCamera.transform.SetParent(player.transform);
+        MainCamera.transform.SetParent(player.transform, false);
         PlayerManager.Player = player;
         PlayerManager.playerIdentity = player.GetComponent<Mirror.NetworkIdentity>();
         PlayerManager.singleton = PlayerManager;

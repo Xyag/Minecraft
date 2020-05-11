@@ -22,12 +22,14 @@ public class WorldLoader : NetworkBehaviour
     private Thread saveThread;
     private float saveTimer = 0;
     private float chunkLoadTimer = 0;
+    private bool loadedOnce;
     private void Start()
     {
         loadBuffer = new List<Vector3Int>(13 * LoadDist * LoadDist); //should be bigger than needed: this is more than the surface area of the sphere
         unloadBuffer = new List<Chunk>(13 * UnloadDist * UnloadDist);
         saveThread = null;
         saveTimer = 0;
+        loadedOnce = false;
     }
     public void Update()
     {
@@ -35,19 +37,15 @@ public class WorldLoader : NetworkBehaviour
         {
             return;
         }
-        if (NetworkClient.active)
+        if (NetworkClient.active && player != null)
         {
             Vector3Int playerChunkCoords = world.WorldToChunkCoords(player.transform.position);
-            /*if (playerChunkCoords != oldPlayerCoords)
+            if (playerChunkCoords != oldPlayerCoords || !loadedOnce)
             {
-                checkChunkLoading();
-            }*/
-            if (chunkLoadTimer > chunkLoadInterval)
-            {
-                chunkLoadTimer = 0;
+                loadedOnce = true; //this way the client loads chunks first before moving.
+                //cant do this in start because player is not assigned.
                 checkChunkLoading();
             }
-            chunkLoadTimer += Time.deltaTime;
             oldPlayerCoords = playerChunkCoords;
         }
         
@@ -87,19 +85,26 @@ public class WorldLoader : NetworkBehaviour
         saveThread.Start();
         Debug.Log("saved");
     }
-
+    public bool chunkNearPlayer(int offsetX, int offsetY, int offsetZ)
+    {
+        return offsetX*offsetX + offsetY*offsetY + offsetZ*offsetZ <= LoadDist * LoadDist;
+    }
+    public bool chunkNearPlayer(Vector3Int playerChunkCoords, Vector3Int chunkCoords)
+    {
+        return (playerChunkCoords - chunkCoords).sqrMagnitude <= LoadDist * LoadDist;
+    }
     private void checkChunkLoading()
     {
         unloadBuffer.Clear();
+        loadBuffer.Clear();
         if (NetworkServer.active)
         {
-            Debug.Log("server checking chunk loading..");
             foreach (var chunk in world.loadedChunks.Values)
             {
                 foreach(var player in world.players.Values)
                 {
                     Vector3Int playerChunkCoords = world.WorldToChunkCoords(player.transform.position);
-                    if ((chunk.chunkCoords - playerChunkCoords).sqrMagnitude < UnloadDist * UnloadDist)
+                    if (chunkNearPlayer(playerChunkCoords,chunk.chunkCoords))
                     {
                         //too close to someone, don't add to unload buffer.
                         goto next;
@@ -117,11 +122,10 @@ public class WorldLoader : NetworkBehaviour
                     {
                         for (int z = -LoadDist; z <= LoadDist; z++)
                         {
-                            Vector3Int coords = world.WorldToChunkCoords(player.transform.position) + new Vector3Int(x, y, z);
-                            int sqrDist = x * x + y * y + z * z;
-                            if (world.chunkInBounds(coords) && sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
+                            Vector3Int playerCoords = new Vector3Int(x, y, z) + world.WorldToChunkCoords(player.transform.position);
+                            if (world.chunkInBounds(playerCoords) && chunkNearPlayer(x,y,z) && !world.loadedChunks.ContainsKey(playerCoords))
                             {
-                                loadBuffer.Add(coords);
+                                loadBuffer.Add(playerCoords);
                             }
                         }
                     }
@@ -133,7 +137,7 @@ public class WorldLoader : NetworkBehaviour
             Vector3Int playerChunkCoords = world.WorldToChunkCoords(player.transform.position);
             foreach (var chunk in world.loadedChunks.Values)
             {
-                if ((chunk.chunkCoords - playerChunkCoords).sqrMagnitude >= UnloadDist * UnloadDist)
+                if (!chunkNearPlayer(playerChunkCoords, chunk.chunkCoords))
                 {
                     //too far away
                     unloadBuffer.Add(chunk);
@@ -145,11 +149,10 @@ public class WorldLoader : NetworkBehaviour
                 {
                     for (int z = -LoadDist; z <= LoadDist; z++)
                     {
-                        Vector3Int coords = world.WorldToChunkCoords(player.transform.position) + new Vector3Int(x, y, z);
-                        int sqrDist = x * x + y * y + z * z;
-                        if (world.chunkInBounds(coords) && sqrDist <= LoadDist * LoadDist && !world.loadedChunks.ContainsKey(coords))
+                        Vector3Int playerCoords = new Vector3Int(x, y, z) + world.WorldToChunkCoords(player.transform.position);
+                        if (world.chunkInBounds(playerCoords) && chunkNearPlayer(x, y, z) && !world.loadedChunks.ContainsKey(playerCoords))
                         {
-                            loadBuffer.Add(coords);
+                            loadBuffer.Add(playerCoords);
                         }
                     }
                 }
@@ -163,19 +166,36 @@ public class WorldLoader : NetworkBehaviour
         toLoad = loadBuffer.Count;
         loadAll(loadBuffer);
     }
-
     private void loadAll(List<Vector3Int> positions)
     {
+        int extras = 0;
+        foreach (var pos in positions)
+        {
+            if (world.loadedChunks.ContainsKey(pos))
+            {
+                extras++;
+            }
+        }
+        Debug.Log("loading " + positions.Count + " chunks (" + extras + " extras).");
         if (NetworkServer.active)
         {
             Task.Run(() => world.generateChunks(positions));
+            if (NetworkClient.active)
+            {
+                //host & play
+                foreach (var pos in positions)
+                {
+                    //only draw chunks close enough to player
+                    if (chunkNearPlayer(world.WorldToChunkCoords(player.transform.position),pos))
+                        WorldManager.singleton.SendRequestChunk(pos);
+                }
+            }
         }
         else if (NetworkClient.active)
         {
             foreach (var pos in positions)
             {
-                if (!world.loadedChunks.ContainsKey(pos))
-                    WorldManager.singleton.SendRequestChunk(pos);
+                WorldManager.singleton.SendRequestChunk(pos);
             }
         }
     }

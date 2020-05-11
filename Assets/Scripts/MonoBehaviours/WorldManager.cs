@@ -1,8 +1,9 @@
 using UnityEngine;
 using System.Threading.Tasks;
-using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Mirror;
+using System;
 
 public class WorldManager : NetworkBehaviour
 {
@@ -14,14 +15,19 @@ public class WorldManager : NetworkBehaviour
     public GameObject[] spawnableEntities;
     public int MinChunkLoadsPerFrame = 5;
     public int MinChunkUnloadsPerFrame = 5;
+    public float RequestedChunksClearInterval = 0.5f;
+    private float requestedChunksTimer;
 
     public Inventory cursorInventory;
 
     private long targetFrameTimeMS;
     private Stopwatch frameTimer;
     private CommandExecutor playerCommandExecutor;
+    private WorldLoader wl;
+    private bool clientInit = false;
+    private List<Vector3Int> requestedChunks = new List<Vector3Int>();
 
-    public void Awake()
+    private void Awake()
     {
         if (singleton == null)
         {
@@ -39,18 +45,6 @@ public class WorldManager : NetworkBehaviour
 
         MeshGenerator.chunkPool = Pool<GameObject>.createGameObjectPool(EmptyChunkPrefab,3000); //just picking 3000 cause that's probably more chunks than we need
         world = new World(Application.persistentDataPath + "/" + SceneData.targetWorld + "/", SceneData.targetWorld, ExplosionParticles, NetworkServer.active);
-
-        if (NetworkServer.active)
-        {
-            WorldLoader wl = GetComponent<WorldLoader>();
-            wl.world = world;
-            UnityEngine.Debug.Log("assigned world");
-            registerServerHandlers();
-        }
-        if (NetworkClient.active)
-        {
-            registerClientHandlers();
-        }
         
         foreach (var go in spawnableEntities)
         {
@@ -58,12 +52,35 @@ public class WorldManager : NetworkBehaviour
             world.entityTypes.Add(entity.type, Pool<GameObject>.createEntityPool(go, world));
             NetworkManager.singleton.spawnPrefabs.Add(go);
         }
+        clientInit = false;
+        if (NetworkClient.active)
+        {
+            //if hosting, this isn't true yet, so we check again in start
+            //however it needs to be in Awake() for normal clients to register the handlers in time.
+            registerClientHandlers();
+            clientInit = true;
+        }
+        if (NetworkServer.active)
+        {
+            wl = GetComponent<WorldLoader>();
+            wl.world = world;
+            registerServerHandlers();
+        }
         
         cursorInventory.items = new Item[1];
     }
+    private void Start()
+    {
+        if (!clientInit && NetworkClient.active)
+        {
+            //only runs if the player is hosting.
+            registerClientHandlers();
+            clientInit = true;
+        }
+    }
     public void clientInitialize(Entity playerEntity)
     {
-        WorldLoader wl = GetComponent<WorldLoader>();
+        wl = GetComponent<WorldLoader>();
         wl.world = world;
         wl.player = playerEntity;
         playerCommandExecutor = new CommandExecutor(playerEntity, world);
@@ -85,17 +102,24 @@ public class WorldManager : NetworkBehaviour
         world.players.Remove(conn);
         world.loadedEntities.Remove(conn.identity.gameObject.GetComponent<Entity>());
     }
+    [Client]
     private void registerClientHandlers()
     {
         UnityEngine.Debug.Log("registering client hanlders");
+        requestedChunks = new List<Vector3Int>();
         NetworkClient.RegisterHandler<ChunkMessage>(OnChunkRecieved);
         NetworkClient.RegisterHandler<LocalPlayerJoinMessage>(OnPlayerAssigned);
     }
+    [Client]
     public void OnChunkRecieved(ChunkMessage message)
     {
         if (message.chunk != null)
         {
             MeshGenerator.generateAndQueue(world, world.recieveChunk(message));
+        }
+        else if (message.willFulfill && !requestedChunks.Contains(message.chunkPos))
+        {
+            requestedChunks.Add(message.chunkPos);
         }
     }
     public void OnPlayerAssigned(LocalPlayerJoinMessage player)
@@ -104,23 +128,26 @@ public class WorldManager : NetworkBehaviour
         Entity playerEntity = player.gameObject.GetComponent<Entity>();
         clientInitialize(playerEntity);
     }
+    [Server]
     private void registerServerHandlers()
     {
         UnityEngine.Debug.Log("registering server handlers");
         NetworkServer.RegisterHandler<RequestChunkMessage>(OnChunkRequested);
         NetworkServer.RegisterHandler<SetBlockMessage>(OnSetBlock);
     }
+    [Server]
     public void OnChunkRequested(RequestChunkMessage message)
     {
-        UnityEngine.Debug.Log("sending chunk: " + message.position);
-        message.client.connectionToClient.Send(new ChunkMessage { chunk = world.getChunk(message.position) });
-        UnityEngine.Debug.Log("chunk sent: " + message.position);
+        message.client.connectionToClient.Send(new ChunkMessage(world.getChunk(message.position), message.position, world.validChunkRequest(message.client.transform.position, message.position, wl )));
     }
+    [Server]
     public void OnSetBlock(SetBlockMessage message)
     {
-        UnityEngine.Debug.Log("setting block");
-        world.setBlock(message.position, message.type, true, false);
-        NetworkServer.SendToAll(new ChunkMessage { chunk = world.getChunk(world.WorldToChunkCoords(message.position)) });
+        if (world.validChunkRequest(message.client.transform.position, message.position, wl))
+        {
+            world.setBlock(message.position, message.type, true, false);
+            NetworkServer.SendToAll(new ChunkMessage(world.getChunk(world.WorldToChunkCoords(message.position)), message.position, true));
+        }
     }
     public bool runGameCommand(string command)
     {
@@ -129,6 +156,34 @@ public class WorldManager : NetworkBehaviour
     public void Update()
     {
         frameTimer.Restart();
+        if (NetworkClient.active)
+        {
+            requestedChunksTimer += Time.deltaTime;
+            if (requestedChunksTimer >= RequestedChunksClearInterval)
+            {
+                if (NetworkServer.active)
+                {
+                    //host will already have the chunks loaded
+                    foreach (var chunkPos in requestedChunks)
+                    {
+                            SendRequestChunk(chunkPos);
+                    }
+                }
+                else
+                {
+                    foreach (var chunkPos in requestedChunks)
+                    {
+                        if (!world.loadedChunks.ContainsKey(chunkPos) && wl.chunkNearPlayer(world.WorldToChunkCoords(PlayerManager.singleton.Player.transform.position), chunkPos))
+                        {
+                            SendRequestChunk(chunkPos);
+                        }
+                    }
+                }
+                if (requestedChunks.Count > 0)
+                    UnityEngine.Debug.Log("cleared request queue (" + requestedChunks.Count + ")");
+                requestedChunks.Clear();
+            }
+        }
     }
     public void LateUpdate()
     {

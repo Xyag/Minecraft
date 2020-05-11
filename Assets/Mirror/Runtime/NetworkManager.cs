@@ -702,7 +702,7 @@ namespace Mirror
 
             if (dontDestroyOnLoad)
             {
-                if (singleton != null)
+                if (singleton != null && singleton != this)
                 {
                     Debug.LogWarning("Multiple NetworkManagers detected in the scene. Only one NetworkManager can exist at a time. The duplicate NetworkManager will be destroyed.");
                     Destroy(gameObject);

@@ -41,7 +41,7 @@ public static class ChunkSerializer
                 return;
             }
             writer.Write('g');
-            
+
             BlockType currType = c.blocks[0, 0, 0].type;
             int number = 0; //first iteration will bring this to 1
             for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
@@ -127,46 +127,54 @@ public static class ChunkSerializer
             fs?.Dispose();
             return null;
         }
-        using (BinaryReader reader = new BinaryReader(fs))
+        Chunk chunk = null;
+        try
         {
-            int magicNum = reader.ReadInt32();
-            if (magicNum != CHUNK_MAGIC_NUMBER)
+            using (BinaryReader reader = new BinaryReader(fs))
             {
-                Debug.LogError("INVALID CHUNK MAGIC NUMBER: " + magicNum + " AT: " + coords);
-                return new Chunk(null, coords);
-            }
-            //chunk coords xyz. don't really care about these since we requested a specific coordinate to begin with
-            reader.ReadInt32();
-            reader.ReadInt32();
-            reader.ReadInt32();
-            if (reader.ReadChar() != 'g') //saved chunk had a null block array
-            {
-                return new Chunk(null, coords);
-            }
-            Chunk chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
-            BlockType type = (BlockType)reader.ReadInt32();
-            int count = reader.ReadInt32();
-            int currCount = count;
-            for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
-            {
-                for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
+                int magicNum = reader.ReadInt32();
+                if (magicNum != CHUNK_MAGIC_NUMBER)
                 {
-                    for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
+                    Debug.LogError("INVALID CHUNK MAGIC NUMBER: " + magicNum + " AT: " + coords);
+                    return new Chunk(null, coords);
+                }
+                //chunk coords xyz. don't really care about these since we requested a specific coordinate to begin with
+                reader.ReadInt32();
+                reader.ReadInt32();
+                reader.ReadInt32();
+                if (reader.ReadChar() != 'g') //saved chunk had a null block array
+                {
+                    return new Chunk(null, coords);
+                }
+                chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
+                BlockType type = (BlockType)reader.ReadInt32();
+                int count = reader.ReadInt32();
+                int currCount = count;
+                for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
+                {
+                    for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                     {
-                        if (currCount == 0)
+                        for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                         {
-                            type = (BlockType)reader.ReadInt32();
-                            count = reader.ReadInt32();
-                            currCount = count;
+                            if (currCount == 0)
+                            {
+                                type = (BlockType)reader.ReadInt32();
+                                count = reader.ReadInt32();
+                                currCount = count;
+                            }
+                            currCount--;
+                            chunk.blocks[x, y, z] = new Block(type);
                         }
-                        currCount--;
-                        chunk.blocks[x, y, z] = new Block(type);
                     }
                 }
+
             }
-            fs.Dispose();
-            return chunk;
         }
+        finally
+        {
+            fs.Dispose();
+        }
+        return chunk;
     }
     //reads the contents of the NetworkReader into a Chunk object and returns that.
     public static Chunk readChunk(NetworkReader reader)

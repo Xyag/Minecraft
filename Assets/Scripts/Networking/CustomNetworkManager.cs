@@ -9,6 +9,7 @@ public class CustomNetworkManager : NetworkManager
     public WorldManager worldManager;
     public NetworkConnection localPlayerConnection;
 
+
     public override void OnServerAddPlayer(NetworkConnection conn)
     {
         Transform startPos = GetStartPosition();
@@ -21,6 +22,7 @@ public class CustomNetworkManager : NetworkManager
         var playerEntity = player.GetComponent<Entity>();
         worldManager.onPlayerConnect(playerEntity, conn);
         conn.Send(new LocalPlayerJoinMessage { gameObject = player });  //lets the cient know which player is theirs.
+        Debug.Log("player sent!");
     }
     public override void OnClientConnect(NetworkConnection conn)
     {
@@ -31,5 +33,10 @@ public class CustomNetworkManager : NetworkManager
     {
         worldManager.onPlayerDisconnect(conn);
         base.OnServerDisconnect(conn);
+    }
+    //sets the ip for the client to connect to.
+    public void SetClientConnectIP(string to)
+    {
+        networkAddress = to;
     }
 }

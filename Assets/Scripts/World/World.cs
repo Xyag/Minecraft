@@ -177,7 +177,6 @@ public class World
     //called on the client when a chunk is recieved from the server
     public Chunk recieveChunk(ChunkMessage message)
     {
-        Debug.Log("recieved " + message.chunk);
         return loadedChunks.AddOrUpdate(message.chunk.chunkCoords, message.chunk, (key, old) => {
             message.chunk.gameObject = old.gameObject;
             message.chunk.changed = true;
@@ -194,7 +193,7 @@ public class World
     {
         if (loadedChunks.TryRemove(chunk.chunkCoords, out Chunk c))
         {
-            c.gameObject.SetActive(false);
+            c.gameObject?.SetActive(false);
         }
         if (isServer)
         {
@@ -253,7 +252,6 @@ public class World
         }
         else
         {
-            Debug.Log("requested form get chunk");
             WorldManager.singleton.SendRequestChunk(chunkCoords);
             return null;
         }
@@ -465,5 +463,9 @@ public class World
             }
         }
         return new BlockHit(null, Vector3Int.zero, Vector3.zero, false);
+    }
+    public bool validChunkRequest(Vector3 requesterPosition, Vector3Int requestedChunk, WorldLoader loader)
+    {
+        return loader.chunkNearPlayer(WorldToChunkCoords(requesterPosition), requestedChunk);
     }
 }

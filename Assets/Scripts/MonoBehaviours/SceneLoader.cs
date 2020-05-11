@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 public class SceneLoader : MonoBehaviour
 {
 
-    private int loadingIndex = 0;
+    private int loadingIndex = 1;
     public void Awake()
     {
         DontDestroyOnLoad(gameObject);

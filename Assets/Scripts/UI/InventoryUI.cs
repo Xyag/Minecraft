@@ -2,7 +2,7 @@
 using UnityEngine.UI;
 using System.Collections.Generic;
 
-public class InventoryUI : MonoBehaviour
+public class InventoryUI : CloseableUIPanel
 {
     public GameObject InventoryScrollView;
     public RectTransform InventoryContent;
@@ -24,6 +24,7 @@ public class InventoryUI : MonoBehaviour
 
     public void display(Inventory inventory)
     {
+        open();
         displaying = inventory;
         InventoryScrollView.SetActive(true);
         float panelWidth = InventoryScrollView.GetComponent<RectTransform>().sizeDelta.x;
@@ -50,8 +51,9 @@ public class InventoryUI : MonoBehaviour
             }
         }
     }
-    public void close()
+    public override void close()
     {
+        base.close();
         foreach (GameObject g in items.objects)
         {
             g.SetActive(false);

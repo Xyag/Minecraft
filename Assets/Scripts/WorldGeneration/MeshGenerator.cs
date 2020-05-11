@@ -55,7 +55,6 @@ public static class MeshGenerator
         var chunkObject = chunk.gameObject;
         if (chunkObject == null)
         {
-            UnityEngine.Debug.Log("chunk spawned");
             chunkObject = chunkPool.get();
             chunk.gameObject = chunkObject;
         }
