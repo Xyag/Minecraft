@@ -130,22 +130,19 @@ public class World
     }
     public void unloadFromQueue(long maxTimeMS, int minUnloads)
     {
-        lock (unloadChunkBuffer)
+        unloadStopwatch.Restart();
+        int chunksRemaining = unloadChunkBuffer.Count;
+        int unloads = 0;
+        var enumerator = unloadChunkBuffer.Keys.GetEnumerator();
+        while (chunksRemaining > 0 && (unloads < minUnloads || unloadStopwatch.ElapsedMilliseconds < maxTimeMS))
         {
-            unloadStopwatch.Restart();
-            int chunksRemaining = unloadChunkBuffer.Count;
-            int unloads = 0;
-            var enumerator = unloadChunkBuffer.Keys.GetEnumerator();
-            while (chunksRemaining > 0 && (unloads < minUnloads || unloadStopwatch.ElapsedMilliseconds < maxTimeMS))
+            if (unloadChunkBuffer.TryRemove(enumerator.Current, out Chunk data))
             {
-                if (unloadChunkBuffer.TryRemove(enumerator.Current, out Chunk data))
-                {
-                    unloadChunk(data);
-                    chunksRemaining--;
-                    unloads++;
-                }
-                enumerator.MoveNext();
+                unloadChunk(data);
+                chunksRemaining--;
+                unloads++;
             }
+            enumerator.MoveNext();
         }
     }
     //returns true if the chunk successfully loaded (so it needs to be meshed)
@@ -178,7 +175,8 @@ public class World
     public Chunk recieveChunk(ChunkMessage message)
     {
         return loadedChunks.AddOrUpdate(message.chunk.chunkCoords, message.chunk, (key, old) => {
-            message.chunk.gameObject = old.gameObject;
+            message.chunk.solidObject = old.solidObject;
+            message.chunk.transparentObject = old.transparentObject;
             message.chunk.changed = true;
             return message.chunk;
         });
@@ -193,7 +191,12 @@ public class World
     {
         if (loadedChunks.TryRemove(chunk.chunkCoords, out Chunk c))
         {
-            c.gameObject?.SetActive(false);
+            if (c.solidObject != null)
+            {
+                Debug.Log("ok");
+            }
+            c.solidObject?.SetActive(false);
+            c.transparentObject?.SetActive(false);
         }
         if (isServer)
         {

@@ -39,5 +39,15 @@ public class TextureArrayCreator : EditorWindow
             texArray.wrapMode = TextureWrapMode.Repeat;
             AssetDatabase.CreateAsset(texArray, "Assets/" + texName + ".asset");
         }
+        if (GUILayout.Button("Load Array"))
+        {
+            Texture2DArray texArray = (Texture2DArray)AssetDatabase.LoadAssetAtPath("Assets/" + texName + ".asset", typeof(Texture2DArray));
+            Textures = new Texture[texArray.depth];
+            for (int i = 0; i < Textures.Length; i++)
+            {
+                Textures[i] = new Texture2D(texDimension, texDimension, UnityEngine.Experimental.Rendering.DefaultFormat.LDR, UnityEngine.Experimental.Rendering.TextureCreationFlags.None);
+                Graphics.CopyTexture(texArray, i, Textures[i], 0);
+            }
+        }
     }
 }

@@ -11,8 +11,10 @@ public class Chunk
     public Dictionary<Vector3Int, BlockInstance> instanceData;
     public Vector3Int worldCoords;
     public Vector3Int chunkCoords;
-    public GameObject gameObject;
-    public MeshData renderData;
+    public GameObject solidObject;
+    public GameObject transparentObject;
+    public MeshData solidRenderData;
+    public MeshData transparentRenderData;
     public bool changed = true;
 
     public Chunk(Block[,,] blocks, Vector3Int chunkCoords)
@@ -23,8 +25,6 @@ public class Chunk
         this.worldCoords = CHUNK_SIZE * chunkCoords;
         this.chunkCoords = chunkCoords;
         this.blocks = blocks;
-        gameObject = null;
-        renderData = null;
         changed = true;
     }
 }

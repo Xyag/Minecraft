@@ -8,7 +8,8 @@ using System;
 public class WorldManager : NetworkBehaviour
 {
     public static WorldManager singleton;
-    public GameObject EmptyChunkPrefab;
+    public GameObject SolidChunkPrefab;
+    public GameObject TransparentChunkPrefab;
     public World world;
     public GameObject ExplosionParticles;
     public AssignPlayer AssignPlayer;
@@ -40,10 +41,11 @@ public class WorldManager : NetworkBehaviour
         ((CustomNetworkManager)NetworkManager.singleton).worldManager = this;
         Application.targetFrameRate = 60;
 
-        targetFrameTimeMS = (long)(1000.0f/(float)Application.targetFrameRate);
+        targetFrameTimeMS = (long)(1000.0f/Application.targetFrameRate);
         frameTimer = new Stopwatch();
 
-        MeshGenerator.chunkPool = Pool<GameObject>.createGameObjectPool(EmptyChunkPrefab,3000); //just picking 3000 cause that's probably more chunks than we need
+        MeshGenerator.solidChunkPool = Pool<GameObject>.createGameObjectPool(SolidChunkPrefab,3000); //just picking 3000 cause that's probably more chunks than we need
+        MeshGenerator.transparentChunkPool = Pool<GameObject>.createGameObjectPool(TransparentChunkPrefab, 3000); //just picking 3000 cause that's probably more chunks than we need
         world = new World(Application.persistentDataPath + "/" + SceneData.targetWorld + "/", SceneData.targetWorld, ExplosionParticles, NetworkServer.active);
         
         foreach (var go in spawnableEntities)
@@ -115,10 +117,36 @@ public class WorldManager : NetworkBehaviour
     {
         if (message.chunk != null)
         {
-            MeshGenerator.generateAndQueue(world, world.recieveChunk(message));
+            MeshGenerator.queueChunk(world.recieveChunk(message));
+            //we have to remesh the neighbors as well
+            if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(1,0,0), out Chunk chunk))
+            {
+                MeshGenerator.queueChunk(chunk);
+            }
+            if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(-1, 0, 0), out chunk))
+            {
+                MeshGenerator.queueChunk(chunk);
+            }
+            if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, 1, 0), out chunk))
+            {
+                MeshGenerator.queueChunk(chunk);
+            }
+            if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, -1, 0), out chunk))
+            {
+                MeshGenerator.queueChunk(chunk);
+            }
+            if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, 0, 1), out chunk))
+            {
+                MeshGenerator.queueChunk(chunk);
+            }
+            if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, 0, -1), out chunk))
+            {
+                MeshGenerator.queueChunk(chunk);
+            }
         }
         else if (message.willFulfill && !requestedChunks.Contains(message.chunkPos))
         {
+            //re-request the chunk. means that the server is generating it or something
             requestedChunks.Add(message.chunkPos);
         }
     }
@@ -162,6 +190,7 @@ public class WorldManager : NetworkBehaviour
         frameTimer.Restart();
         if (NetworkClient.active)
         {
+            MeshGenerator.emptyFrameBuffer(world);
             requestedChunksTimer += Time.deltaTime;
             if (requestedChunksTimer >= RequestedChunksClearInterval)
             {
@@ -192,7 +221,6 @@ public class WorldManager : NetworkBehaviour
     public void LateUpdate()
     {
         //we divide the remaining frame time between spawning and unloading
-        MeshGenerator.emptyFrameBuffer(world);
         long currTime = frameTimer.ElapsedMilliseconds;
         MeshGenerator.spawnFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkLoadsPerFrame);
         currTime = frameTimer.ElapsedMilliseconds;

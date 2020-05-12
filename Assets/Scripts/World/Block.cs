@@ -6,7 +6,7 @@ public struct Block
 {
     public static BlockData[] blockTypes = new BlockData[]
     {
-        new BlockData { type = BlockType.chunk_border, opaque = false, fullCollision = false, raycastable = false },
+        new BlockData { type = BlockType.chunk_border, opaque = true, fullCollision = false, raycastable = false },
         new BlockData { type = BlockType.empty, opaque = false, fullCollision = false, raycastable = false },
         new BlockData { type = BlockType.stone, opaque = true, fullCollision = true, texture = new BlockTexture(0) },
         new BlockData { type = BlockType.dirt, opaque = true, fullCollision = true, texture = new BlockTexture(1) },
@@ -19,7 +19,7 @@ public struct Block
         new BlockData { type = BlockType.snow, opaque = true, fullCollision = true, texture = new BlockTexture(10)},
         new BlockData { type = BlockType.cactus, opaque = true, fullCollision = true, texture = new BlockTexture(11,12,11,11,12,11)},
         new BlockData { type = BlockType.glass, opaque = false, fullCollision = true, texture = new BlockTexture(13)},
-        new BlockData { type = BlockType.water, opaque = true, fullCollision = false, raycastable = false, texture = new BlockTexture(14)},
+        new BlockData { type = BlockType.water, opaque = false, fullCollision = false, raycastable = false, texture = new BlockTexture(14)},
     };
 
     public BlockType type;

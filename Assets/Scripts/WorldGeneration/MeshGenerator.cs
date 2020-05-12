@@ -9,14 +9,38 @@ using System.Diagnostics;
 public static class MeshGenerator
 {
     public static ConcurrentQueue<Chunk> finishedMeshes = new ConcurrentQueue<Chunk>();
-    private static ConcurrentQueue<Chunk> frameBuffer = new ConcurrentQueue<Chunk>();
-    public static ConcurrentQueue<Chunk> remeshQueue = new ConcurrentQueue<Chunk>();
-    public static Pool<GameObject> chunkPool;
+    private static ConcurrentDictionary<Vector3Int, Chunk> frameBuffer = new ConcurrentDictionary<Vector3Int, Chunk>();
+    private static ConcurrentDictionary<Vector3Int, Chunk> meshing = new ConcurrentDictionary<Vector3Int, Chunk>();
+    public static Pool<GameObject> solidChunkPool;
+    public static Pool<GameObject> transparentChunkPool;
     private static readonly Stopwatch stopwatch = new Stopwatch();
+    private static World world;
 
+    //we generate all queue all requests for meshing from the main thread at the beginning of each frame
     public static void emptyFrameBuffer(World world)
     {
-        spawnAll(frameBuffer, world);
+        foreach (var item in frameBuffer.Values)
+        {
+            if (item == null)
+            {
+                continue;
+            }
+            if (!meshing.ContainsKey(item.chunkCoords))
+            {
+                meshing.TryAdd(item.chunkCoords, item);
+                Task.Run(() => generateAndQueue(world, item));
+            }
+        }
+        frameBuffer.Clear();
+    }
+    public static void queueChunk(Chunk chunk)
+    {
+        if (chunk == null)
+        {
+            return;
+        }
+        if (!frameBuffer.ContainsKey(chunk.chunkCoords))
+            frameBuffer.TryAdd(chunk.chunkCoords, chunk);
     }
     public static void spawnFromQueue(long maxTimeMS, int minSpawns)
     {
@@ -33,47 +57,70 @@ public static class MeshGenerator
             }
         }
     }
-    public static void generateAndQueue(World world, Chunk chunk)
+    private static void generateAndQueue(World world, Chunk chunk)
     {
+        MeshGenerator.world = world;
         if (chunk == null)
             return;
         generateMesh(world, chunk);
         finishedMeshes.Enqueue(chunk);
     }
-    public static void spawnAll(IEnumerable<Chunk> collection, World world)
+    private static void spawnChunk(Chunk chunk)
     {
-        foreach (var item in collection)
-        {
-            Task.Run(() => generateAndQueue(world, item));
-        }
-    }
-    public static void spawnChunk(Chunk chunk)
-    {
-        if (chunk == null || chunk.renderData == null)
+        if (chunk == null)
             return;
-        var data = chunk.renderData;
-        var chunkObject = chunk.gameObject;
-        if (chunkObject == null)
+        if (!meshing.TryRemove(chunk.chunkCoords, out Chunk _))
         {
-            chunkObject = chunkPool.get();
-            chunk.gameObject = chunkObject;
+            UnityEngine.Debug.LogError("spawned chunk not present in framebuffer");
         }
-        chunkObject.name = (data.worldPos / Chunk.CHUNK_SIZE).ToString();
-        chunkObject.transform.position = data.worldPos;
+        if (chunk.solidRenderData == null || chunk.transparentRenderData == null)
+            return;
+        //create solid obj if not already extant
+        var solidObj = chunk.solidObject;
+        if (solidObj == null)
+        {
+            solidObj = solidChunkPool.get();
+            chunk.solidObject = solidObj;
+        }
+        solidObj.name = (chunk.solidRenderData.worldPos / Chunk.CHUNK_SIZE).ToString();
+        solidObj.transform.position = chunk.solidRenderData.worldPos;
 
-        replaceChunkMesh(chunk, data);
+       // UnityEngine.Debug.Log(world.loadedChunks.TryGetValue(chunk.chunkCoords, out Chunk test) + ": " + (test == null ? "false" : test.solidObject.name));
+
+        //create transparent obj if not already extant
+        var transparentObj = chunk.transparentObject;
+        if (transparentObj == null)
+        {
+            transparentObj = transparentChunkPool.get();
+            chunk.transparentObject = transparentObj;
+        }
+        transparentObj.name = (chunk.transparentRenderData.worldPos / Chunk.CHUNK_SIZE).ToString();
+        transparentObj.transform.position = chunk.transparentRenderData.worldPos;
+
+        replaceChunkMesh(chunk, chunk.solidRenderData, chunk.transparentRenderData);
     }
-    public static void replaceChunkMesh(Chunk chunk, MeshData data)
+    private static void replaceChunkMesh(Chunk chunk, MeshData solid, MeshData transparent)
     {
-        MeshFilter mf = chunk.gameObject.GetComponent<MeshFilter>();
+        MeshFilter mf = chunk.solidObject.GetComponent<MeshFilter>();
 
         mf.mesh.Clear();
-        if (data != null)
+        if (solid != null)
         {
-            mf.mesh.SetVertices(data.vertices);
-            mf.mesh.SetTriangles(data.triangles, 0);
-            mf.mesh.SetNormals(data.normals);
-            mf.mesh.SetUVs(0, data.uvs);
+            mf.mesh.SetVertices(solid.vertices);
+            mf.mesh.SetTriangles(solid.triangles, 0);
+            mf.mesh.SetNormals(solid.normals);
+            mf.mesh.SetUVs(0, solid.uvs);
+        }
+
+        mf = chunk.transparentObject.GetComponent<MeshFilter>();
+
+        mf.mesh.Clear();
+        if (solid != null)
+        {
+            mf.mesh.SetVertices(transparent.vertices);
+            mf.mesh.SetTriangles(transparent.triangles, 0);
+            mf.mesh.SetNormals(transparent.normals);
+            mf.mesh.SetUVs(0, transparent.uvs);
         }
         chunk.changed = false;
     }
@@ -191,7 +238,7 @@ public static class MeshGenerator
         uvs.Add(new Vector3(0, 0, texId));
     }
 
-    public static Chunk generateMesh(World world, Chunk chunk)
+    private static Chunk generateMesh(World world, Chunk chunk)
     {
         if (chunk == null || chunk.blocks == null)
         {
@@ -218,33 +265,59 @@ public static class MeshGenerator
                 }
             }
         }
-        MeshData renderData = chunk.renderData;
-        List<Vector3> vertices;
-        List<int> triangles;
-        List<Vector3> normals;
-        List<Vector3> uvs;
+        MeshData solidData = chunk.solidRenderData;
+        List<Vector3> solidVertices;
+        List<int> solidTris;
+        List<Vector3> solidNorms;
+        List<Vector3> solidUVs;
+        MeshData transparentData = chunk.transparentRenderData;
+        List<Vector3> transparentVertices;
+        List<int> transparentTris;
+        List<Vector3> transparentNorms;
+        List<Vector3> transparentUVs;
         bool[,,] meshed = new bool[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE]; //default value is false
-        if (renderData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
+        if (solidData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
         {
-            chunk.renderData = new MeshData();
-            renderData = chunk.renderData;
-            renderData.vertices = new List<Vector3>();
-            renderData.triangles = new List<int>();
-            renderData.normals = new List<Vector3>();
-            renderData.uvs = new List<Vector3>();
+            chunk.solidRenderData = new MeshData();
+            solidData = chunk.solidRenderData;
+            solidData.vertices = new List<Vector3>();
+            solidData.triangles = new List<int>();
+            solidData.normals = new List<Vector3>();
+            solidData.uvs = new List<Vector3>();
         }
         else
         {
-            renderData.vertices.Clear();
-            renderData.triangles.Clear();
-            renderData.normals.Clear();
-            renderData.uvs.Clear();
+            solidData.vertices.Clear();
+            solidData.triangles.Clear();
+            solidData.normals.Clear();
+            solidData.uvs.Clear();
         }
-        vertices = renderData.vertices;
-        triangles = renderData.triangles;
-        normals = renderData.normals;
-        uvs = renderData.uvs;
-        int faceIndex = 0;
+        if (transparentData == null) //means that the chunk hasn't been meshed before, we need to allocate for the mesh data.
+        {
+            chunk.transparentRenderData = new MeshData();
+            transparentData = chunk.transparentRenderData;
+            transparentData.vertices = new List<Vector3>();
+            transparentData.triangles = new List<int>();
+            transparentData.normals = new List<Vector3>();
+            transparentData.uvs = new List<Vector3>();
+        }
+        else
+        {
+            transparentData.vertices.Clear();
+            transparentData.triangles.Clear();
+            transparentData.normals.Clear();
+            transparentData.uvs.Clear();
+        }
+        solidVertices = solidData.vertices;
+        solidTris = solidData.triangles;
+        solidNorms = solidData.normals;
+        solidUVs = solidData.uvs;
+        int solidFaceIndex = 0;
+        transparentVertices = transparentData.vertices;
+        transparentTris = transparentData.triangles;
+        transparentNorms = transparentData.normals;
+        transparentUVs = transparentData.uvs;
+        int transparentFaceIndex = 0;
         //we take by layers. first we do +x, then -x, then y's, then z's
         //we're also doing greedy meshing: basically we find the biggest rectangle that can fit on the block we loop on and go with that
         //good animation here https://www.gedge.ca/dev/2014/08/17/greedy-voxel-meshing
@@ -257,16 +330,17 @@ public static class MeshGenerator
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
                     BlockType type = blocks[x, y, z];
-
+                    var blockData = Block.blockTypes[(int)type];
                     if (x == Chunk.CHUNK_SIZE - 1)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).opaque)
+                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).opaque
+                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).type)))
                         {
                             meshed[0, y, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x + 1, y, z]].opaque) { meshed[0, y, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x + 1, y, z]].opaque || (!blockData.opaque && (type == blocks[x+1,y,z]))) { meshed[0, y, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
@@ -298,8 +372,16 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        posXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
+                        if (Block.blockTypes[(int)type].opaque)
+                        {
+                            posXFace(solidFaceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), solidVertices, solidTris, solidNorms, solidUVs, type);
+                            solidFaceIndex++;
+                        }
+                        else
+                        {
+                            posXFace(transparentFaceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), transparentVertices, transparentTris, transparentNorms, transparentUVs, type);
+                            transparentFaceIndex++;
+                        }
                     }
                 }
             }
@@ -314,16 +396,17 @@ public static class MeshGenerator
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
                     BlockType type = blocks[x, y, z];
-
+                    var blockData = Block.blockTypes[(int)type];
                     if (x == 0)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, y, z)).opaque)
+                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, y, z)).opaque
+                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).type)))
                         {
                             meshed[0, y, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x - 1, y, z]].opaque) { meshed[0, y, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x - 1, y, z]].opaque || (!blockData.opaque && (type == blocks[x - 1, y, z]))) { meshed[0, y, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
@@ -355,8 +438,16 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        negXFace(faceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
+                        if (Block.blockTypes[(int)type].opaque)
+                        {
+                            negXFace(solidFaceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), solidVertices, solidTris, solidNorms, solidUVs, type);
+                            solidFaceIndex++;
+                        }
+                        else
+                        {
+                            negXFace(transparentFaceIndex, new Vector3(x, y, z), new Vector2(yExtent, zExtent), transparentVertices, transparentTris, transparentNorms, transparentUVs, type);
+                            transparentFaceIndex++;
+                        }
                     }
                 }
             }
@@ -371,16 +462,17 @@ public static class MeshGenerator
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
                     BlockType type = blocks[x, y, z];
-
+                    var blockData = Block.blockTypes[(int)type];
                     if (y == Chunk.CHUNK_SIZE - 1)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y + 1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).opaque)
+                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y + 1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).opaque
+                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y+1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).type)))
                         {
                             meshed[0, x, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y + 1, z]].opaque) { meshed[0, x, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y + 1, z]].opaque || (!blockData.opaque && (type == blocks[x, y+1, z]))) { meshed[0, x, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
@@ -412,8 +504,16 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        posYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
+                        if (Block.blockTypes[(int)type].opaque)
+                        {
+                            posYFace(solidFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), solidVertices, solidTris, solidNorms, solidUVs, type);
+                            solidFaceIndex++;
+                        }
+                        else
+                        {
+                            posYFace(transparentFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), transparentVertices, transparentTris, transparentNorms, transparentUVs, type);
+                            transparentFaceIndex++;
+                        }
                     }
                 }
             }
@@ -428,16 +528,17 @@ public static class MeshGenerator
                 for (int z = 0; z < Chunk.CHUNK_SIZE; z++)
                 {
                     BlockType type = blocks[x, y, z];
-
+                    var blockData = Block.blockTypes[(int)type];
                     if (y == 0)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y - 1, chunk.chunkCoords.z), new Vector3Int(x, Chunk.CHUNK_SIZE - 1, z)).opaque)
+                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y - 1, chunk.chunkCoords.z), new Vector3Int(x, Chunk.CHUNK_SIZE - 1, z)).opaque
+                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y -1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).type)))
                         {
                             meshed[0, x, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y - 1, z]].opaque) { meshed[0, x, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y - 1, z]].opaque || (!blockData.opaque && (type == blocks[x, y-1, z]))) { meshed[0, x, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
@@ -469,8 +570,16 @@ public static class MeshGenerator
                         }
                     endLoop:
                         zExtent--; //we always overcount by 1.
-                        negYFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
+                        if (Block.blockTypes[(int)type].opaque)
+                        {
+                            negYFace(solidFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), solidVertices, solidTris, solidNorms, solidUVs, type);
+                            solidFaceIndex++;
+                        }
+                        else
+                        {
+                            negYFace(transparentFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, zExtent), transparentVertices, transparentTris, transparentNorms, transparentUVs, type);
+                            transparentFaceIndex++;
+                        }
                     }
                 }
             }
@@ -485,16 +594,17 @@ public static class MeshGenerator
                 for (int x = 0; x < Chunk.CHUNK_SIZE; x++)
                 {
                     BlockType type = blocks[x, y, z];
-
+                    var blockData = Block.blockTypes[(int)type];
                     if (z == Chunk.CHUNK_SIZE - 1)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).opaque)
+                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).opaque
+                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).type)))
                         {
                             meshed[0, x, y] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y, z + 1]].opaque) { meshed[0, x, y] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y, z + 1]].opaque || (!blockData.opaque && (type == blocks[x, y, z+1]))) { meshed[0, x, y] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
@@ -526,8 +636,16 @@ public static class MeshGenerator
                         }
                     endLoop:
                         yExtent--; //we always overcount by 1.
-                        posZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
+                        if (Block.blockTypes[(int)type].opaque)
+                        {
+                            posZFace(solidFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), solidVertices, solidTris, solidNorms, solidUVs, type);
+                            solidFaceIndex++;
+                        }
+                        else
+                        {
+                            posZFace(transparentFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), transparentVertices, transparentTris, transparentNorms, transparentUVs, type);
+                            transparentFaceIndex++;
+                        }
                     }
                 }
             }
@@ -542,16 +660,17 @@ public static class MeshGenerator
                 for (int y = 0; y < Chunk.CHUNK_SIZE; y++)
                 {
                     BlockType type = blocks[x, y, z];
-
+                    var blockData = Block.blockTypes[(int)type];
                     if (z == 0)
                     {
-                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, Chunk.CHUNK_SIZE - 1)).opaque)
+                        if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, Chunk.CHUNK_SIZE - 1)).opaque
+                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, 0)).type)))
                         {
                             meshed[0, x, y] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y, z - 1]].opaque) { meshed[0, x, y] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y, z - 1]].opaque || (!blockData.opaque && (type == blocks[x, y, z-1]))) { meshed[0, x, y] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
@@ -583,23 +702,40 @@ public static class MeshGenerator
                         }
                     endLoop:
                         yExtent--; //we always overcount by 1.
-                        negZFace(faceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), vertices, triangles, normals, uvs, type);
-                        faceIndex++;
+                        if (Block.blockTypes[(int)type].opaque)
+                        {
+                            negZFace(solidFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), solidVertices, solidTris, solidNorms, solidUVs, type);
+                            solidFaceIndex++;
+                        }
+                        else
+                        {
+                            negZFace(transparentFaceIndex, new Vector3(x, y, z), new Vector2(xExtent, yExtent), transparentVertices, transparentTris, transparentNorms, transparentUVs, type);
+                            transparentFaceIndex++;
+                        }
                     }
                 }
             }
             set2dFalse(meshed);
         }
 
-        MeshData meshData = new MeshData
+        MeshData solidMeshData = new MeshData
         {
             worldPos = chunk.worldCoords,
-            vertices = vertices,
-            triangles = triangles,
-            normals = normals,
-            uvs = uvs,
+            vertices = solidVertices,
+            triangles = solidTris,
+            normals = solidNorms,
+            uvs = solidUVs,
         };
-        chunk.renderData = meshData;
+        chunk.solidRenderData = solidMeshData;
+        MeshData transparentMeshData = new MeshData
+        {
+            worldPos = chunk.worldCoords,
+            vertices = transparentVertices,
+            triangles = transparentTris,
+            normals = transparentNorms,
+            uvs = transparentUVs,
+        };
+        chunk.transparentRenderData = transparentMeshData;
         return chunk;
     }
     

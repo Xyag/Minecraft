@@ -106,7 +106,7 @@ public static class WorldGenerator
         //generationLayers.Add(new PenishPicker());
 
         generationLayers.Add(crazyGenerator);
-        generationLayers.Add(crazyTrees);
+        //generationLayers.Add(crazyTrees);
         //generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
