@@ -6,13 +6,13 @@ public struct Block
 {
     public static BlockData[] blockTypes = new BlockData[]
     {
-        new BlockData { type = BlockType.chunk_border, opaque = true, fullCollision = false, raycastable = false },
+        new BlockData { type = BlockType.unloadedChunk, opaque = true, fullCollision = false, raycastable = false },
         new BlockData { type = BlockType.empty, opaque = false, fullCollision = false, raycastable = false },
         new BlockData { type = BlockType.stone, opaque = true, fullCollision = true, texture = new BlockTexture(0) },
         new BlockData { type = BlockType.dirt, opaque = true, fullCollision = true, texture = new BlockTexture(1) },
         new BlockData { type = BlockType.grass, opaque = true, fullCollision = true, texture = new BlockTexture(2,3,2,2,1,2) },
         new BlockData { type = BlockType.log, opaque = true, fullCollision = true, texture = new BlockTexture(4,5,4,4,5,4)},
-        new BlockData { type = BlockType.iron_ore, opaque = true, fullCollision = true, texture = new BlockTexture(6)},
+        new BlockData { type = BlockType.ironOre, opaque = true, fullCollision = true, texture = new BlockTexture(6)},
         new BlockData { type = BlockType.leaves, opaque = true, fullCollision = true, texture = new BlockTexture(7)},
         new FallingBlockData { type = BlockType.sand, opaque = true, fullCollision = true, texture = new BlockTexture(8)},
         new TNTBlockData { type = BlockType.tnt, opaque = true, fullCollision = true, texture = new BlockTexture(9),interactable = true, explosionStrength = 8, fuseLength = 2},
@@ -31,13 +31,13 @@ public struct Block
 
 public enum BlockType : short
 {
-    chunk_border,
+    unloadedChunk,
     empty,
     stone,
     dirt,
     grass,
     log,
-    iron_ore,
+    ironOre,
     leaves,
     sand,
     tnt,

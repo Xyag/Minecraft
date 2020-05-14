@@ -199,30 +199,31 @@ public class WorldManager : NetworkBehaviour
                     //host will already have the chunks loaded
                     foreach (var chunkPos in requestedChunks)
                     {
-                            SendRequestChunk(chunkPos);
+                        SendRequestChunk(chunkPos);
                     }
                 }
                 else
                 {
                     foreach (var chunkPos in requestedChunks)
                     {
-                        if (!world.loadedChunks.ContainsKey(chunkPos) && wl.chunkNearPlayer(world.WorldToChunkCoords(PlayerManager.singleton.Player.transform.position), chunkPos))
+                        if (!world.loadedChunks.ContainsKey(chunkPos) && wl.chunkLoadable(world.WorldToChunkCoords(PlayerManager.singleton.Player.transform.position), chunkPos))
                         {
                             SendRequestChunk(chunkPos);
                         }
                     }
                 }
                 if (requestedChunks.Count > 0)
-                    UnityEngine.Debug.Log("cleared request queue (" + requestedChunks.Count + ")");
-                requestedChunks.Clear();
+                {
+                    requestedChunks.Clear();
+                }
             }
         }
     }
     public void LateUpdate()
     {
-        //we divide the remaining frame time between spawning and unloading
+        //we divide the remaining frame time between spawning and unloading. only uses 2/3 of the remaining time just cause.
         long currTime = frameTimer.ElapsedMilliseconds;
-        MeshGenerator.spawnFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkLoadsPerFrame);
+        MeshGenerator.spawnFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkLoadsPerFrame, world);
         currTime = frameTimer.ElapsedMilliseconds;
         world.unloadFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkUnloadsPerFrame);
         currTime = frameTimer.ElapsedMilliseconds;

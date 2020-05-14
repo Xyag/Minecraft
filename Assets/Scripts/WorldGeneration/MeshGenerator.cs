@@ -8,13 +8,12 @@ using System.Diagnostics;
 
 public static class MeshGenerator
 {
-    public static ConcurrentQueue<Chunk> finishedMeshes = new ConcurrentQueue<Chunk>();
-    private static ConcurrentDictionary<Vector3Int, Chunk> frameBuffer = new ConcurrentDictionary<Vector3Int, Chunk>();
-    private static ConcurrentDictionary<Vector3Int, Chunk> meshing = new ConcurrentDictionary<Vector3Int, Chunk>();
     public static Pool<GameObject> solidChunkPool;
     public static Pool<GameObject> transparentChunkPool;
+    private static ConcurrentQueue<Chunk> finishedMeshes = new ConcurrentQueue<Chunk>();
+    private static ConcurrentDictionary<Vector3Int, Chunk> frameBuffer = new ConcurrentDictionary<Vector3Int, Chunk>();
+    private static ConcurrentDictionary<Vector3Int, Chunk> meshing = new ConcurrentDictionary<Vector3Int, Chunk>();
     private static readonly Stopwatch stopwatch = new Stopwatch();
-    private static World world;
 
     //we generate all queue all requests for meshing from the main thread at the beginning of each frame
     public static void emptyFrameBuffer(World world)
@@ -25,10 +24,9 @@ public static class MeshGenerator
             {
                 continue;
             }
-            if (!meshing.ContainsKey(item.chunkCoords))
+            if (meshing.TryAdd(item.chunkCoords, item) && world.loadedChunks.TryGetValue(item.chunkCoords, out Chunk chunk))
             {
-                meshing.TryAdd(item.chunkCoords, item);
-                Task.Run(() => generateAndQueue(world, item));
+                Task.Run(() => generateAndQueue(world, chunk));
             }
         }
         frameBuffer.Clear();
@@ -42,16 +40,21 @@ public static class MeshGenerator
         if (!frameBuffer.ContainsKey(chunk.chunkCoords))
             frameBuffer.TryAdd(chunk.chunkCoords, chunk);
     }
-    public static void spawnFromQueue(long maxTimeMS, int minSpawns)
+    public static void spawnFromQueue(long maxTimeMS, int minSpawns, World world)
     {
         stopwatch.Restart();
         int chunksRemaining = finishedMeshes.Count;
         int spawns = 0;
         while (chunksRemaining > 0 && (spawns < minSpawns || stopwatch.ElapsedMilliseconds < maxTimeMS))
         {
-            if (finishedMeshes.TryDequeue(out Chunk data))
+            if (finishedMeshes.TryDequeue(out Chunk data) && world.loadedChunks.TryGetValue(data.chunkCoords, out Chunk chunk))
             {
-                spawnChunk(data);
+                //the chunk object in the world's dictionary may have been replaced when compared to the finished mash.
+                //our best bet is to use the one in the world's dictionary with the render data generated from the other chunk.
+                //this way, we won't spawn chunks in the scene that aren't attached to a chunk, which wouldn't unload and would have the new chunk drawn on top.
+                chunk.solidRenderData = data.solidRenderData;
+                chunk.transparentRenderData = data.transparentRenderData;
+                spawnChunk(chunk);
                 chunksRemaining--;
                 spawns++;
             }
@@ -59,11 +62,17 @@ public static class MeshGenerator
     }
     private static void generateAndQueue(World world, Chunk chunk)
     {
-        MeshGenerator.world = world;
-        if (chunk == null)
-            return;
-        generateMesh(world, chunk);
-        finishedMeshes.Enqueue(chunk);
+        try
+        {
+            if (chunk == null)
+                return;
+            generateMesh(world, chunk);
+            finishedMeshes.Enqueue(chunk);
+        }
+        catch (System.Exception e)
+        {
+            UnityEngine.Debug.LogError(e.ToString());
+        }
     }
     private static void spawnChunk(Chunk chunk)
     {
@@ -76,33 +85,25 @@ public static class MeshGenerator
         if (chunk.solidRenderData == null || chunk.transparentRenderData == null)
             return;
         //create solid obj if not already extant
-        var solidObj = chunk.solidObject;
-        if (solidObj == null)
+        if (chunk.solidObject == null)
         {
-            solidObj = solidChunkPool.get();
-            chunk.solidObject = solidObj;
+            chunk.solidObject = solidChunkPool.get();
         }
-        solidObj.name = (chunk.solidRenderData.worldPos / Chunk.CHUNK_SIZE).ToString();
-        solidObj.transform.position = chunk.solidRenderData.worldPos;
-
-       // UnityEngine.Debug.Log(world.loadedChunks.TryGetValue(chunk.chunkCoords, out Chunk test) + ": " + (test == null ? "false" : test.solidObject.name));
+        chunk.solidObject.name = (chunk.solidRenderData.worldPos / Chunk.CHUNK_SIZE).ToString();
+        chunk.solidObject.transform.position = chunk.solidRenderData.worldPos;
 
         //create transparent obj if not already extant
-        var transparentObj = chunk.transparentObject;
-        if (transparentObj == null)
+        if (chunk.transparentObject == null)
         {
-            transparentObj = transparentChunkPool.get();
-            chunk.transparentObject = transparentObj;
+            chunk.transparentObject = transparentChunkPool.get();
         }
-        transparentObj.name = (chunk.transparentRenderData.worldPos / Chunk.CHUNK_SIZE).ToString();
-        transparentObj.transform.position = chunk.transparentRenderData.worldPos;
-
+        chunk.transparentObject.name = (chunk.transparentRenderData.worldPos / Chunk.CHUNK_SIZE).ToString();
+        chunk.transparentObject.transform.position = chunk.transparentRenderData.worldPos;
         replaceChunkMesh(chunk, chunk.solidRenderData, chunk.transparentRenderData);
     }
     private static void replaceChunkMesh(Chunk chunk, MeshData solid, MeshData transparent)
     {
         MeshFilter mf = chunk.solidObject.GetComponent<MeshFilter>();
-
         mf.mesh.Clear();
         if (solid != null)
         {
@@ -113,7 +114,6 @@ public static class MeshGenerator
         }
 
         mf = chunk.transparentObject.GetComponent<MeshFilter>();
-
         mf.mesh.Clear();
         if (solid != null)
         {
@@ -122,7 +122,6 @@ public static class MeshGenerator
             mf.mesh.SetNormals(transparent.normals);
             mf.mesh.SetUVs(0, transparent.uvs);
         }
-        chunk.changed = false;
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void posXFace(int faceIndex, Vector3 blockPos, Vector2 size, List<Vector3> vertices, List<int> triangles, List<Vector3> normals, List<Vector3> uvs, BlockType block)
@@ -341,7 +340,7 @@ public static class MeshGenerator
                         }
                     }
                     else if (Block.blockTypes[(int)blocks[x + 1, y, z]].opaque || (!blockData.opaque && (type == blocks[x+1,y,z]))) { meshed[0, y, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
                         meshed[0, y, z] = true;
@@ -407,7 +406,7 @@ public static class MeshGenerator
                         }
                     }
                     else if (Block.blockTypes[(int)blocks[x - 1, y, z]].opaque || (!blockData.opaque && (type == blocks[x - 1, y, z]))) { meshed[0, y, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, y, z])
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
                         meshed[0, y, z] = true;
@@ -473,7 +472,7 @@ public static class MeshGenerator
                         }
                     }
                     else if (Block.blockTypes[(int)blocks[x, y + 1, z]].opaque || (!blockData.opaque && (type == blocks[x, y+1, z]))) { meshed[0, x, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
                         meshed[0, x, z] = true;
@@ -539,7 +538,7 @@ public static class MeshGenerator
                         }
                     }
                     else if (Block.blockTypes[(int)blocks[x, y - 1, z]].opaque || (!blockData.opaque && (type == blocks[x, y-1, z]))) { meshed[0, x, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, z])
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
                         meshed[0, x, z] = true;
@@ -605,7 +604,7 @@ public static class MeshGenerator
                         }
                     }
                     else if (Block.blockTypes[(int)blocks[x, y, z + 1]].opaque || (!blockData.opaque && (type == blocks[x, y, z+1]))) { meshed[0, x, y] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
                         meshed[0, x, y] = true;
@@ -671,7 +670,7 @@ public static class MeshGenerator
                         }
                     }
                     else if (Block.blockTypes[(int)blocks[x, y, z - 1]].opaque || (!blockData.opaque && (type == blocks[x, y, z-1]))) { meshed[0, x, y] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.chunk_border && !meshed[0, x, y])
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
                         meshed[0, x, y] = true;

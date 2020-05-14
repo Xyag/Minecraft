@@ -2008,7 +2008,7 @@ MonoBehaviour:
   syncInterval: 0.1
   player: {fileID: 0}
   LoadDist: 6
-  UnloadDist: 7
+  UnloadDist: 8
   toLoad: 0
   saveInterval: 10
   chunkLoadInterval: 1

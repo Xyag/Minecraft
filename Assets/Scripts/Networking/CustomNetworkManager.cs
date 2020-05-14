@@ -9,13 +9,12 @@ public class CustomNetworkManager : NetworkManager
     public WorldManager worldManager;
     public NetworkConnection localPlayerConnection;
 
-
     public override void OnServerAddPlayer(NetworkConnection conn)
     {
         Transform startPos = GetStartPosition();
         GameObject player = startPos != null
             ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
-            : Instantiate(playerPrefab);
+            : Instantiate(playerPrefab, new Vector3(0,30,0), Quaternion.identity);
 
         NetworkServer.AddPlayerForConnection(conn, player);
 

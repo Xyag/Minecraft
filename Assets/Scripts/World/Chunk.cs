@@ -15,14 +15,14 @@ public class Chunk
     public GameObject transparentObject;
     public MeshData solidRenderData;
     public MeshData transparentRenderData;
-    public bool changed = true;
+    public bool changed; //if the chunk has changed since last save
 
     public Chunk(Block[,,] blocks, Vector3Int chunkCoords)
     {
         if (blocks != null && (blocks.GetLength(0) != CHUNK_SIZE || blocks.GetLength(1) != CHUNK_SIZE || blocks.GetLength(2) != CHUNK_SIZE))
             throw new System.Exception("Invalid chunk dimensions: " + chunkCoords);
 
-        this.worldCoords = CHUNK_SIZE * chunkCoords;
+        worldCoords = CHUNK_SIZE * chunkCoords;
         this.chunkCoords = chunkCoords;
         this.blocks = blocks;
         changed = true;

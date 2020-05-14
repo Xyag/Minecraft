@@ -18,7 +18,7 @@ public static class WorldGenerator
             minHeight = -20,
             tolerance = 0.5f,
             noise = new NoiseGroup(2, 0.05f, 2.0f, 2, 0.5f, seed),
-            dontReplace = BlockType.empty,
+            dontReplace = BlockType.water,
             replaceWith = BlockType.empty
         };
         var ironGenerator = new LerpBlockGenerationLayer
@@ -28,7 +28,7 @@ public static class WorldGenerator
             tolerance = 1.2f,
             noise = new NoiseGroup(2, 0.1f, 3, 1, 0.15f, seed + 12), //I add random numbers to the seed to make sure that the generators are independent
             dontReplace = BlockType.empty,
-            replaceWith = BlockType.iron_ore
+            replaceWith = BlockType.ironOre
         };
         var holeyHillsGenerator = new HeightmapGenerationLayer
         {
@@ -37,7 +37,7 @@ public static class WorldGenerator
             midBlock = BlockType.dirt,
             underGroundBlock = BlockType.stone,
             midDepth = 3,
-            waterLevel = -100,
+            seaLevel = -100,
         };
 
         var plainsGenerator = new HeightmapGenerationLayer
@@ -58,7 +58,7 @@ public static class WorldGenerator
             midBlock = BlockType.sand,
             underGroundBlock = BlockType.stone,
             midDepth = 10,
-            waterLevel = 10,
+            seaLevel = 10,
         };
         var plainsTrees = new TreeGenerationLayer
         {
@@ -91,7 +91,7 @@ public static class WorldGenerator
             midBlock = BlockType.dirt,
             underGroundBlock = BlockType.stone,
             midDepth = 10,
-            waterLevel = 10,
+            seaLevel = 10,
         };
         var crazyTrees = new TreeGenerationLayer
         {
@@ -117,7 +117,7 @@ public static class WorldGenerator
         List<Task<Chunk>> genTasks = new List<Task<Chunk>>(chunks.Count);
         for (int i = 0; i < generationLayers.Count; i++)
         {
-            
+
             if (generationLayers[i].isSingleThreaded())
             {
                 foreach (var chunk in chunks)
@@ -139,12 +139,22 @@ public static class WorldGenerator
                     genTasks.Remove(finishedTask);
                 }
             }
-            
         }
     }
     //interoplates pos in the unit square where the corners have the values provided by the arguments
     public static float bilinearInterpolate(Vector2 pos, float botLeft, float topLeft, float topRight, float botRight)
     {
         return botLeft * (1 - pos.x) * (1 - pos.y) + botRight * pos.x * (1 - pos.y) + topLeft * (1 - pos.x) * pos.y + topRight * pos.x * pos.y;
+    }
+    public static float trilinearInterpolate(Vector3 pos, float origin, float px, float py, float pz, float pxy, float pyz, float pxz, float pxyz)
+    {
+        return origin * (1 - pos.x) * (1 - pos.y) * (1 - pos.z)
+            + px * pos.x * (1 - pos.y) * (1 - pos.z)
+            + py * (1 - pos.x) * pos.y * (1 - pos.z)
+            + pz * (1 - pos.x) * (1 - pos.y) * pos.z
+            + pxy * pos.x * pos.y * (1 - pos.z)
+            + pxz * pos.x * (1 - pos.y) * pos.z
+            + pyz * (1 - pos.x) * pos.y * pos.z
+            + pxyz * pos.x * pos.y * pos.z;
     }
 }

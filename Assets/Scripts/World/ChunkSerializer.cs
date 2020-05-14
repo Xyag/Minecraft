@@ -29,6 +29,7 @@ public static class ChunkSerializer
     {
         if (c == null)
             return;
+        c.changed = false;
         using (BinaryWriter writer = new BinaryWriter(File.Create(savePath + c.chunkCoords + ".chunk")))
         {
             writer.Write(CHUNK_MAGIC_NUMBER);
@@ -191,7 +192,7 @@ public static class ChunkSerializer
         Vector3Int coords = new Vector3Int(chunkX, chunkY, chunkZ);
         if (reader.ReadChar() != 'g') //saved chunk had a null block array
         {
-            return new Chunk(null, coords);
+            return new Chunk(null, coords) { changed = false };
         }
         Chunk chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
         BlockType type = (BlockType)reader.ReadInt32();
@@ -214,6 +215,7 @@ public static class ChunkSerializer
                 }
             }
         }
+        chunk.changed = false;
         return chunk;
     }
 }

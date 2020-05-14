@@ -10,9 +10,10 @@ public class World
     const float EXPLOSION_PARTICLES_SCALE = 0.125f;
     public static readonly int ConcurrencyLevel = System.Environment.ProcessorCount * 2;
 
-    public readonly ConcurrentDictionary<Vector3Int, Chunk> unloadChunkBuffer = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1000);//1000 is arbitrary, doesn't really matter.
+    public readonly ConcurrentDictionary<Vector3Int, Chunk> unloadChunkBuffer = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1009);//number is arbitrary. doesn't really matter.
+    private readonly ConcurrentDictionary<Vector3Int, Chunk> saveBuffer = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1009);//number is arbitrary. doesn't really matter.
 
-    public readonly ConcurrentDictionary<Vector3Int, Chunk> loadedChunks = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1000); //1000 is arbitrary, doesn't really matter.
+    public readonly ConcurrentDictionary<Vector3Int, Chunk> loadedChunks = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1009); //number is arbitrary. doesn't really matter.
     public readonly Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public readonly Dictionary<NetworkConnection, Entity> players;
     public readonly List<Entity> loadedEntities = new List<Entity>();
@@ -55,10 +56,15 @@ public class World
         {
             Directory.CreateDirectory(savePath);
         }
-        List<Chunk> toSave = new List<Chunk>(loadedChunks.Values.Count);
+        List<Chunk> toSave = new List<Chunk>(loadedChunks.Values.Count + saveBuffer.Values.Count);
         foreach (var chunk in loadedChunks.Values)
         {
             toSave.Add(chunk);
+        }
+        foreach (var chunk in saveBuffer.Values)
+        {
+            if (!toSave.Contains(chunk))
+                toSave.Add(chunk);
         }
         foreach (var chunk in toSave)
         {
@@ -136,9 +142,9 @@ public class World
         var enumerator = unloadChunkBuffer.Keys.GetEnumerator();
         while (chunksRemaining > 0 && (unloads < minUnloads || unloadStopwatch.ElapsedMilliseconds < maxTimeMS))
         {
-            if (unloadChunkBuffer.TryRemove(enumerator.Current, out Chunk data))
+            if (unloadChunkBuffer.TryRemove(enumerator.Current, out Chunk _))
             {
-                unloadChunk(data);
+                unloadChunk(enumerator.Current);
                 chunksRemaining--;
                 unloads++;
             }
@@ -174,12 +180,32 @@ public class World
     //called on the client when a chunk is recieved from the server
     public Chunk recieveChunk(ChunkMessage message)
     {
-        return loadedChunks.AddOrUpdate(message.chunk.chunkCoords, message.chunk, (key, old) => {
-            message.chunk.solidObject = old.solidObject;
-            message.chunk.transparentObject = old.transparentObject;
-            message.chunk.changed = true;
-            return message.chunk;
-        });
+        if (NetworkServer.active)
+        {
+            //host mode, don't overrwrite the gameobjects if they already exist.
+            return loadedChunks.AddOrUpdate(message.chunk.chunkCoords, message.chunk, (key, old) =>
+            {   
+                if (message.chunk.solidObject == null)
+                {
+                    message.chunk.solidObject = old.solidObject;
+                }
+                if (message.chunk.transparentObject == null)
+                {
+                    message.chunk.transparentObject = old.transparentObject;
+                }
+                return message.chunk;
+            });
+        }
+        else
+        {
+            //this conserves the chunk object if it's already loaded. The animation won't play and you won't get a new object from the pool.
+            return loadedChunks.AddOrUpdate(message.chunk.chunkCoords, message.chunk, (key, old) =>
+            {
+                message.chunk.solidObject = old.solidObject;
+                message.chunk.transparentObject = old.transparentObject;
+                return message.chunk;
+            });
+        }
     }
     public void createChunk(Chunk c)
     {
@@ -187,27 +213,16 @@ public class World
             return;
         loadedChunks.TryAdd(c.chunkCoords, c);
     }
-    public void unloadChunk(Chunk chunk)
-    {
-        if (loadedChunks.TryRemove(chunk.chunkCoords, out Chunk c))
-        {
-            if (c.solidObject != null)
-            {
-                Debug.Log("ok");
-            }
-            c.solidObject?.SetActive(false);
-            c.transparentObject?.SetActive(false);
-        }
-        if (isServer)
-        {
-            ChunkSerializer.writeChunkToFile(chunk);
-        }
-    }
     public void unloadChunk(Vector3Int coords)
     {
-        if (loadedChunks.TryGetValue(coords, out Chunk chunk))
+        if (loadedChunks.TryRemove(coords, out Chunk c))
         {
-            unloadChunk(chunk);
+            c.solidObject?.SetActive(false);
+            c.transparentObject?.SetActive(false);
+            if (isServer && c.changed)
+            {
+                saveBuffer.TryAdd(coords, c);
+            }
         }
     }
     public async Task generateChunks(List<Vector3Int> coords)
@@ -228,7 +243,7 @@ public class World
                 toGenerate.Add(temp);
             }
         }
-       await WorldGenerator.generateList(this, toGenerate);
+        await WorldGenerator.generateList(this, toGenerate);
     }
     //if called from a client and the client has to request the chunk, return null
     public Chunk getChunk(Vector3Int chunkCoords)
@@ -367,6 +382,7 @@ public class World
             createChunk(chunk);
             chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type = block;
             loadedChunks.TryAdd(chunk.chunkCoords, chunk);
+            chunk.changed = true;
             return chunk;
         }
         return null;
@@ -409,7 +425,7 @@ public class World
         if (loadedChunks.TryGetValue(chunkCoords, out Chunk chunk))
         {
             if (chunk == null)
-                return Block.blockTypes[(int)BlockType.chunk_border];
+                return Block.blockTypes[(int)BlockType.unloadedChunk];
             if (chunk.blocks == null)
                 return Block.blockTypes[(int)BlockType.empty];
             int blockType = (int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type;
@@ -417,7 +433,7 @@ public class World
         }
         else
         {
-            return Block.blockTypes[(int)BlockType.chunk_border];
+            return Block.blockTypes[(int)BlockType.unloadedChunk];
         }
     }
     //stores blockData using getBlock() in indicies 0-5 in toStore.
@@ -468,6 +484,6 @@ public class World
     }
     public bool validChunkRequest(Vector3 requesterPosition, Vector3Int requestedChunk, WorldLoader loader)
     {
-        return loader.chunkNearPlayer(WorldToChunkCoords(requesterPosition), requestedChunk);
+        return loader.chunkLoadable(WorldToChunkCoords(requesterPosition), requestedChunk);
     }
 }
