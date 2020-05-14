@@ -10,35 +10,57 @@ public static class MeshGenerator
 {
     public static Pool<GameObject> solidChunkPool;
     public static Pool<GameObject> transparentChunkPool;
-    private static ConcurrentQueue<Chunk> finishedMeshes = new ConcurrentQueue<Chunk>();
-    private static ConcurrentDictionary<Vector3Int, Chunk> frameBuffer = new ConcurrentDictionary<Vector3Int, Chunk>();
-    private static ConcurrentDictionary<Vector3Int, Chunk> meshing = new ConcurrentDictionary<Vector3Int, Chunk>();
+    private static readonly ConcurrentQueue<Chunk> finishedMeshes = new ConcurrentQueue<Chunk>();
+    private static readonly ConcurrentDictionary<Vector3Int, Chunk> frameBuffer = new ConcurrentDictionary<Vector3Int, Chunk>();
+    private static readonly ConcurrentDictionary<Vector3Int, Chunk> meshing = new ConcurrentDictionary<Vector3Int, Chunk>();
     private static readonly Stopwatch stopwatch = new Stopwatch();
 
     //we generate all queue all requests for meshing from the main thread at the beginning of each frame
     public static void emptyFrameBuffer(World world)
     {
-        foreach (var item in frameBuffer.Values)
+        //we're only going to mesh chunks that are completely surrounded by other chunks
+        //this effectively creates a 1-chunk thick shell around the meshed chunks of nonmeshed but loaded chunks
+        //doing it like this prevents us from having to mesh each chunk multiple times as the world generates while not caring about the order that chunks arrive.
+        //we check again because the chunk loading may have changed since the chunks were added to the queue
+        foreach (var chunkCoords in frameBuffer.Keys)
         {
-            if (item == null)
+            if (!(world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(1, 0, 0), out Chunk x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(-1, 0, 0), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 1, 0), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, -1, 0), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, 1), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunkCoords + new Vector3Int(0, 0, -1), out x) && x.valid
+               ))
             {
                 continue;
             }
-            if (meshing.TryAdd(item.chunkCoords, item) && world.loadedChunks.TryGetValue(item.chunkCoords, out Chunk chunk))
+            if (world.loadedChunks.TryGetValue(chunkCoords, out Chunk current) && current.valid && meshing.TryAdd(chunkCoords, current))
             {
-                Task.Run(() => generateAndQueue(world, chunk));
+                Task.Run(() => generateAndQueue(world, current));
             }
         }
         frameBuffer.Clear();
     }
-    public static void queueChunk(Chunk chunk)
+    public static void queueChunk(Chunk chunk, World world)
     {
-        if (chunk == null)
+        //we're only going to mesh chunks that are completely surrounded by other chunks
+        //this effectively creates a 1-chunk thick shell around the meshed chunks of nonmeshed but loaded chunks
+        //doing it like this prevents us from having to mesh each chunk multiple times as the world generates while not caring about the order that chunks arrive.
+        if (chunk == null || !chunk.valid || frameBuffer.ContainsKey(chunk.chunkCoords))
         {
             return;
         }
-        if (!frameBuffer.ContainsKey(chunk.chunkCoords))
-            frameBuffer.TryAdd(chunk.chunkCoords, chunk);
+        if (!(world.loadedChunks.TryGetValue(chunk.chunkCoords + new Vector3Int(1, 0, 0), out Chunk x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunk.chunkCoords + new Vector3Int(-1, 0, 0), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunk.chunkCoords + new Vector3Int(0, 1, 0), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunk.chunkCoords + new Vector3Int(0, -1, 0), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunk.chunkCoords + new Vector3Int(0, 0, 1), out x) && x.valid &&
+                world.loadedChunks.TryGetValue(chunk.chunkCoords + new Vector3Int(0, 0, -1), out x) && x.valid
+           ))
+        {
+            return;
+        }
+        frameBuffer.TryAdd(chunk.chunkCoords, chunk);
     }
     public static void spawnFromQueue(long maxTimeMS, int minSpawns, World world)
     {
@@ -333,13 +355,13 @@ public static class MeshGenerator
                     if (x == Chunk.CHUNK_SIZE - 1)
                     {
                         if (world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).opaque
-                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).type)))
+                            || (world.getBlock(new Vector3Int(chunk.chunkCoords.x + 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).type == type))
                         {
                             meshed[0, y, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x + 1, y, z]].opaque || (!blockData.opaque && (type == blocks[x+1,y,z]))) { meshed[0, y, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x + 1, y, z]].opaque || type == blocks[x+1,y,z]) { meshed[0, y, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
@@ -399,14 +421,14 @@ public static class MeshGenerator
                     if (x == 0)
                     {
                         if (world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, y, z)).opaque
-                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(0, y, z)).type)))
+                            || (world.getBlock(new Vector3Int(chunk.chunkCoords.x - 1, chunk.chunkCoords.y, chunk.chunkCoords.z), new Vector3Int(Chunk.CHUNK_SIZE - 1, y, z)).type == type))
                         {
                             meshed[0, y, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x - 1, y, z]].opaque || (!blockData.opaque && (type == blocks[x - 1, y, z]))) { meshed[0, y, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, y, z])
+                    else if (Block.blockTypes[(int)blocks[x - 1, y, z]].opaque || type == blocks[x - 1, y, z]) { meshed[0, y, z] = true; continue; }
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && type != BlockType.unloadedChunk && !meshed[0, y, z])
                     {
                         //first we expand in y-direction
                         meshed[0, y, z] = true;
@@ -465,14 +487,14 @@ public static class MeshGenerator
                     if (y == Chunk.CHUNK_SIZE - 1)
                     {
                         if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y + 1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).opaque
-                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y+1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).type)))
+                           || (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y+1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).type == type))
                         {
                             meshed[0, x, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y + 1, z]].opaque || (!blockData.opaque && (type == blocks[x, y+1, z]))) { meshed[0, x, z] = true; continue; }
-                    if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, z])
+                    else if (Block.blockTypes[(int)blocks[x, y + 1, z]].opaque || type == blocks[x, y+1, z]) { meshed[0, x, z] = true; continue; }
+                    if (type != BlockType.empty && type != BlockType.unloadedChunk && type != BlockType.unloadedChunk && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
                         meshed[0, x, z] = true;
@@ -531,13 +553,13 @@ public static class MeshGenerator
                     if (y == 0)
                     {
                         if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y - 1, chunk.chunkCoords.z), new Vector3Int(x, Chunk.CHUNK_SIZE - 1, z)).opaque
-                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y -1, chunk.chunkCoords.z), new Vector3Int(x, 0, z)).type)))
+                            || (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y-1, chunk.chunkCoords.z), new Vector3Int(x, Chunk.CHUNK_SIZE-1, z)).type == type))
                         {
                             meshed[0, x, z] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y - 1, z]].opaque || (!blockData.opaque && (type == blocks[x, y-1, z]))) { meshed[0, x, z] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y - 1, z]].opaque ||type == blocks[x, y-1, z]) { meshed[0, x, z] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, z])
                     {
                         //first we expand in x-direction
@@ -597,13 +619,13 @@ public static class MeshGenerator
                     if (z == Chunk.CHUNK_SIZE - 1)
                     {
                         if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).opaque
-                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z + 1), new Vector3Int(x, y, 0)).type)))
+                            || (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z+1), new Vector3Int(x, y, 0)).type == type))
                         {
                             meshed[0, x, y] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y, z + 1]].opaque || (!blockData.opaque && (type == blocks[x, y, z+1]))) { meshed[0, x, y] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y, z + 1]].opaque || type == blocks[x, y, z+1]) { meshed[0, x, y] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, y])
                     {
                         //first we expand in x-direction
@@ -663,13 +685,13 @@ public static class MeshGenerator
                     if (z == 0)
                     {
                         if (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, Chunk.CHUNK_SIZE - 1)).opaque
-                            || (!blockData.opaque && (type == world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z - 1), new Vector3Int(x, y, 0)).type)))
+                            || (world.getBlock(new Vector3Int(chunk.chunkCoords.x, chunk.chunkCoords.y, chunk.chunkCoords.z-1), new Vector3Int(x, y, Chunk.CHUNK_SIZE - 1)).type == type))
                         {
                             meshed[0, x, y] = true;
                             continue;
                         }
                     }
-                    else if (Block.blockTypes[(int)blocks[x, y, z - 1]].opaque || (!blockData.opaque && (type == blocks[x, y, z-1]))) { meshed[0, x, y] = true; continue; }
+                    else if (Block.blockTypes[(int)blocks[x, y, z - 1]].opaque || type == blocks[x, y, z-1]) { meshed[0, x, y] = true; continue; }
                     if (type != BlockType.empty && type != BlockType.unloadedChunk && !meshed[0, x, y])
                     {
                         //first we expand in x-direction

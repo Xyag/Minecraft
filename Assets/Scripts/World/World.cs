@@ -12,7 +12,7 @@ public class World
 
     public readonly ConcurrentDictionary<Vector3Int, Chunk> unloadChunkBuffer = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1009);//number is arbitrary. doesn't really matter.
     private readonly ConcurrentDictionary<Vector3Int, Chunk> saveBuffer = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1009);//number is arbitrary. doesn't really matter.
-
+    //when referencing chunks, you should always get it directly from this dictionary to make sure you have the up-to-date version
     public readonly ConcurrentDictionary<Vector3Int, Chunk> loadedChunks = new ConcurrentDictionary<Vector3Int, Chunk>(ConcurrencyLevel, 1009); //number is arbitrary. doesn't really matter.
     public readonly Dictionary<EntityType, Pool<GameObject>> entityTypes = new Dictionary<EntityType, Pool<GameObject>>();
     public readonly Dictionary<NetworkConnection, Entity> players;
@@ -180,6 +180,7 @@ public class World
     //called on the client when a chunk is recieved from the server
     public Chunk recieveChunk(ChunkMessage message)
     {
+        message.chunk.valid = true;
         if (NetworkServer.active)
         {
             //host mode, don't overrwrite the gameobjects if they already exist.
@@ -238,7 +239,7 @@ public class World
             Chunk temp = getChunk(pos);
             if (temp == null)
             {
-                temp = new Chunk(null, pos);
+                temp = new Chunk(null, pos) { valid = false};
                 createChunk(temp);
                 toGenerate.Add(temp);
             }
@@ -252,7 +253,10 @@ public class World
             return null;
         if (loadedChunks.TryGetValue(chunkCoords, out Chunk chunk))
         {
-            return chunk;
+            if (chunk.valid)
+                return chunk;
+            else
+                return null;
         }
         if (isServer)
         {
@@ -425,7 +429,10 @@ public class World
         if (loadedChunks.TryGetValue(chunkCoords, out Chunk chunk))
         {
             if (chunk == null)
+            {
+                Debug.LogError("null chunk");
                 return Block.blockTypes[(int)BlockType.unloadedChunk];
+            }
             if (chunk.blocks == null)
                 return Block.blockTypes[(int)BlockType.empty];
             int blockType = (int)chunk.blocks[blockCoords.x, blockCoords.y, blockCoords.z].type;

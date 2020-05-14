@@ -145,7 +145,7 @@ public static class ChunkSerializer
                 reader.ReadInt32();
                 if (reader.ReadChar() != 'g') //saved chunk had a null block array
                 {
-                    return new Chunk(null, coords);
+                    return new Chunk(null, coords) { valid = true };
                 }
                 chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
                 BlockType type = (BlockType)reader.ReadInt32();
@@ -175,6 +175,7 @@ public static class ChunkSerializer
         {
             fs.Dispose();
         }
+        chunk.valid = true;
         return chunk;
     }
     //reads the contents of the NetworkReader into a Chunk object and returns that.
@@ -192,7 +193,7 @@ public static class ChunkSerializer
         Vector3Int coords = new Vector3Int(chunkX, chunkY, chunkZ);
         if (reader.ReadChar() != 'g') //saved chunk had a null block array
         {
-            return new Chunk(null, coords) { changed = false };
+            return new Chunk(null, coords) { changed = false, valid = true };
         }
         Chunk chunk = new Chunk(new Block[Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE, Chunk.CHUNK_SIZE], coords);
         BlockType type = (BlockType)reader.ReadInt32();
@@ -216,6 +217,7 @@ public static class ChunkSerializer
             }
         }
         chunk.changed = false;
+        chunk.valid = true;
         return chunk;
     }
 }

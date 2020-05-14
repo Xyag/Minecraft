@@ -97,7 +97,7 @@ public static class WorldGenerator
         {
             maxTreeHeight = 30,
             minTreeHeight = 5,
-            treeDensity = 5,
+            treeDensity = 2,
             treeDensityConstant = 1
         };
 
@@ -106,7 +106,7 @@ public static class WorldGenerator
         //generationLayers.Add(new PenishPicker());
 
         generationLayers.Add(crazyGenerator);
-        //generationLayers.Add(crazyTrees);
+        generationLayers.Add(crazyTrees);
         //generationLayers.Add(cactusGenerator);
         //generationLayers.Add(plainsTrees);
         //generationLayers.Add(ironGenerator);
@@ -115,9 +115,12 @@ public static class WorldGenerator
     public static async Task generateList(World world, List<Chunk> chunks)
     {
         List<Task<Chunk>> genTasks = new List<Task<Chunk>>(chunks.Count);
+        foreach (var chunk in chunks)
+        {
+            chunk.valid = false;
+        }
         for (int i = 0; i < generationLayers.Count; i++)
         {
-
             if (generationLayers[i].isSingleThreaded())
             {
                 foreach (var chunk in chunks)
@@ -132,20 +135,26 @@ public static class WorldGenerator
                 {
                     genTasks.Add(Task.Run(() => generationLayers[i].generateChunk(chunk, world)));
                 }
-                //process the chunks as the come in from the multiple threads.
-                while (genTasks.Count > 0)
-                {
-                    var finishedTask = await Task.WhenAny(genTasks);
-                    genTasks.Remove(finishedTask);
-                }
+                //wait for all chunks to be generated.
+                await Task.WhenAll(genTasks);
             }
         }
+        foreach (var chunk in chunks)
+        {
+            chunk.valid = true;
+        }
+    }
+    //returns the value of f(x) where f is a line that has points f(0) = val1 and f(1) = val2.
+    public static float linearInterpolate(float val1, float val2, float x)
+    {
+        return val1 * (1 - x) + val2 * x;
     }
     //interoplates pos in the unit square where the corners have the values provided by the arguments
     public static float bilinearInterpolate(Vector2 pos, float botLeft, float topLeft, float topRight, float botRight)
     {
         return botLeft * (1 - pos.x) * (1 - pos.y) + botRight * pos.x * (1 - pos.y) + topLeft * (1 - pos.x) * pos.y + topRight * pos.x * pos.y;
     }
+    //unit cube. p<letter> indicates that you have moved on that axis. ex: px is (1,0,0), pyz is (0,1,1), etc.
     public static float trilinearInterpolate(Vector3 pos, float origin, float px, float py, float pz, float pxy, float pyz, float pxz, float pxyz)
     {
         return origin * (1 - pos.x) * (1 - pos.y) * (1 - pos.z)

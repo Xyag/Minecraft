@@ -117,31 +117,31 @@ public class WorldManager : NetworkBehaviour
     {
         if (message.chunk != null)
         {
-            MeshGenerator.queueChunk(world.recieveChunk(message));
-            //we have to remesh the neighbors as well
+            MeshGenerator.queueChunk(world.recieveChunk(message), world);
+            //we have to remesh the neighbors as well. all chunks on client are valid, but we check since we could be in host mode.
             if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(1,0,0), out Chunk chunk))
             {
-                MeshGenerator.queueChunk(chunk);
+                MeshGenerator.queueChunk(chunk, world);
             }
             if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(-1, 0, 0), out chunk))
             {
-                MeshGenerator.queueChunk(chunk);
+                MeshGenerator.queueChunk(chunk, world);
             }
             if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, 1, 0), out chunk))
             {
-                MeshGenerator.queueChunk(chunk);
+                MeshGenerator.queueChunk(chunk, world);
             }
             if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, -1, 0), out chunk))
             {
-                MeshGenerator.queueChunk(chunk);
+                MeshGenerator.queueChunk(chunk, world);
             }
             if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, 0, 1), out chunk))
             {
-                MeshGenerator.queueChunk(chunk);
+                MeshGenerator.queueChunk(chunk, world);
             }
             if (world.loadedChunks.TryGetValue(message.chunkPos + new Vector3Int(0, 0, -1), out chunk))
             {
-                MeshGenerator.queueChunk(chunk);
+                MeshGenerator.queueChunk(chunk, world);
             }
         }
         else if (message.willFulfill && !requestedChunks.Contains(message.chunkPos))
@@ -175,7 +175,7 @@ public class WorldManager : NetworkBehaviour
     [Server]
     public void OnSetBlock(SetBlockMessage message)
     {
-        if (world.validChunkRequest(message.client.transform.position, message.position, wl))
+        if (world.validChunkRequest(message.client.transform.position, world.WorldToChunkCoords(message.position), wl))
         {
             world.setBlock(message.position, message.type, true, false);
             NetworkServer.SendToAll(new ChunkMessage(world.getChunk(world.WorldToChunkCoords(message.position)), message.position, true));
@@ -227,10 +227,10 @@ public class WorldManager : NetworkBehaviour
         currTime = frameTimer.ElapsedMilliseconds;
         world.unloadFromQueue((targetFrameTimeMS - currTime) / 3, MinChunkUnloadsPerFrame);
         currTime = frameTimer.ElapsedMilliseconds;
-        if (currTime > targetFrameTimeMS)
+        /*if (currTime > targetFrameTimeMS)
         {
             UnityEngine.Debug.Log((currTime - targetFrameTimeMS) + " ms over time");
-        }
+        }*/
         
     }
     [Client]
@@ -239,8 +239,8 @@ public class WorldManager : NetworkBehaviour
         PlayerManager.playerIdentity.connectionToServer.Send(new RequestChunkMessage { position = chunkCoords, client = PlayerManager.playerIdentity });
     }
     [Client]
-    public void SendRequestSetBlock(NetworkIdentity client, Vector3Int block, BlockType to)
+    public void SendRequestSetBlock(NetworkIdentity client, Vector3Int pos, BlockType to)
     {
-        PlayerManager.playerIdentity.connectionToServer.Send(new SetBlockMessage { client = client, position = block, type = to });
+        PlayerManager.playerIdentity.connectionToServer.Send(new SetBlockMessage { client = client, position = pos, type = to });
     }
 }

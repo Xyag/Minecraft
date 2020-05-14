@@ -6,8 +6,8 @@ public struct Block
 {
     public static BlockData[] blockTypes = new BlockData[]
     {
-        new BlockData { type = BlockType.unloadedChunk, opaque = true, fullCollision = false, raycastable = false },
         new BlockData { type = BlockType.empty, opaque = false, fullCollision = false, raycastable = false },
+        new BlockData { type = BlockType.unloadedChunk, opaque = false, fullCollision = false, raycastable = false }, //unloaded chunk should never be an actual block in a chunk. it's what the world returns if you try to get a block from an unloaded chunk.
         new BlockData { type = BlockType.stone, opaque = true, fullCollision = true, texture = new BlockTexture(0) },
         new BlockData { type = BlockType.dirt, opaque = true, fullCollision = true, texture = new BlockTexture(1) },
         new BlockData { type = BlockType.grass, opaque = true, fullCollision = true, texture = new BlockTexture(2,3,2,2,1,2) },
@@ -31,7 +31,7 @@ public struct Block
 
 public enum BlockType : short
 {
-    unloadedChunk,
+    unloadedChunk,//unloaded chunk should never be an actual block in a chunk. it's what the world returns if you try to get a block from an unloaded chunk.
     empty,
     stone,
     dirt,

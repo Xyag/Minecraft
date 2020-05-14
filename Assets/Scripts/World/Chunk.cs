@@ -16,6 +16,7 @@ public class Chunk
     public MeshData solidRenderData;
     public MeshData transparentRenderData;
     public bool changed; //if the chunk has changed since last save
+    public bool valid; //if the chunk is valid to be sent to the client (done generating). All chunks on client are valid (maybe not in host mode).
 
     public Chunk(Block[,,] blocks, Vector3Int chunkCoords)
     {
@@ -26,5 +27,6 @@ public class Chunk
         this.chunkCoords = chunkCoords;
         this.blocks = blocks;
         changed = true;
+        valid = false;
     }
 }

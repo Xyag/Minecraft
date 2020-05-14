@@ -54,7 +54,7 @@ public class HeightmapGenerationLayer : IGenerationLayer
                         {
                             blocks[x, y, z] = new Block(seaBlock);
                         }
-                        else if (height <= seaLevel + beachDepth && y + chunk.worldCoords.y <= height && y + chunk.worldCoords.y <= seaLevel + beachDepth)
+                        else if (height <= seaLevel + beachDepth && y + chunk.worldCoords.y <= height && y + chunk.worldCoords.y <= seaLevel + beachDepth && y + chunk.worldCoords.y >= height - beachDepth)
                         {
                             blocks[x, y, z] = new Block(beachBlock);
                         }
