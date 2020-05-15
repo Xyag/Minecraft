@@ -31,8 +31,8 @@ public struct Block
 
 public enum BlockType : short
 {
-    unloadedChunk,//unloaded chunk should never be an actual block in a chunk. it's what the world returns if you try to get a block from an unloaded chunk.
     empty,
+    unloadedChunk,//unloaded chunk should never be an actual block in a chunk. it's what the world returns if you try to get a block from an unloaded chunk.
     stone,
     dirt,
     grass,

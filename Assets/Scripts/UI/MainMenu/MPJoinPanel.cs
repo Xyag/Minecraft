@@ -14,6 +14,7 @@ public class MPJoinPanel : MonoBehaviour
     {
         
         CustomNetworkManager.singleton.networkAddress = AddressField.text;
+        SceneData.gameType = SceneData.GameType.Join;
         CustomNetworkManager.singleton.StartClient();
         ConnectButton.enabled = false;
         CancelButton.SetActive(true);

@@ -85,37 +85,6 @@ public class TreeGenerationLayer : IGenerationLayer
                     }
                     
                 }
-                /*for (int i = 0; i < treeHeight; i++)
-                {
-                    for (int x = -i; x <= i; x++)
-                    {
-                        for (int z = -i; z <= i; z++)
-                        {
-                            Vector3Int blockPos = new Vector3Int(treeLocation.x + x + chunk.worldCoords.x, chunk.worldCoords.y + high + i, treeLocation.y + z + chunk.worldCoords.z);
-                            if (x == z)
-                            {
-                                //trunk, should be wood
-                                world.setBlock(blockPos, BlockType.log, forceLoadChunk: true);
-                            }
-                            else
-                            {
-                                //should be a leaf
-                                world.setBlock(blockPos, BlockType.leaves, forceLoadChunk: true);
-                            }
-                        }
-                    }
-                }
-                for (int i = high; i < maxTreeHeight; i++)
-                {
-                    if (i < Chunk.CHUNK_SIZE)
-                    {
-                        chunk.blocks[treeLocation.x, i, treeLocation.y].type = BlockType.log;
-                    }
-                    else
-                    {
-                        world.setBlock(chunk.worldCoords + new Vector3Int(treeLocation.x, i, treeLocation.y), BlockType.log, forceLoadChunk: true);
-                    }
-                }*/
             }
         }
     }

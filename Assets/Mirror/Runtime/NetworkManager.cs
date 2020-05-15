@@ -100,7 +100,7 @@ namespace Mirror
         /// </summary>
         [FormerlySerializedAs("m_MaxConnections")]
         [Tooltip("Maximum number of concurrent connections.")]
-        public int maxConnections = 4;
+        public int maxConnections = 16;
 
         // This value is passed to NetworkServer in SetupServer
         /// <summary>

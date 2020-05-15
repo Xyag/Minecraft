@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using Mirror;
+using System;
 
 public class PlayerManager : NetworkBehaviour
 {
@@ -10,6 +11,9 @@ public class PlayerManager : NetworkBehaviour
     public CloseableUIPanel pauseMenu;
     public GameObject blockHighlight;
     public WorldManager worldManager;
+
+    public event EventHandler<HeadEnterBlockEventArgs> OnHeadEnterBlock;
+    private BlockType oldHeadBlock;
 
     public void Update()
     {
@@ -23,6 +27,30 @@ public class PlayerManager : NetworkBehaviour
             Cursor.lockState = CursorLockMode.None;
             return;
         }
+
+        doInput();
+        doEvents();
+
+        if (anythingOpen())
+        {
+            Cursor.lockState = CursorLockMode.None;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+    }
+    private void doEvents()
+    {
+        BlockData headBlock = worldManager.world.getBlock(transform.position.toInt());
+        if (headBlock.type != oldHeadBlock)
+        {
+            OnHeadEnterBlock?.Invoke(this, new HeadEnterBlockEventArgs { block = headBlock, blockPosition = transform.position.toInt() });
+        }
+        oldHeadBlock = headBlock.type;
+    }
+    private void doInput()
+    {
         var hit = worldManager.world.raycast(transform.position, transform.forward, 10);
         blockHighlight.SetActive(hit.hit);
         blockHighlight.transform.position = hit.coords;
@@ -49,16 +77,9 @@ public class PlayerManager : NetworkBehaviour
             }
             else
             {
-                Player.inventory[0].onUse(Player, transform.forward, hit, worldManager.world);
+                worldManager.SendRequestSetBlock(playerIdentity, hit.coords, BlockType.tnt);
+                //Player.inventory[0].onUse(Player, transform.forward, hit, worldManager.world);
             }
-        }
-        if (anythingOpen())
-        {
-            Cursor.lockState = CursorLockMode.None;
-        }
-        else
-        {
-            Cursor.lockState = CursorLockMode.Locked;
         }
     }
     private bool anythingOpen()

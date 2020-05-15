@@ -70,9 +70,9 @@ public class WorldEntryFactory : MonoBehaviour
             dispName = info.fileName.Substring(0, MaxWorldNameLength-3) + "...";
             Debug.Log(dispName);
         }
-        var scriptEntiry = entry.GetComponent<WorldEntry>();
-        scriptEntiry.SetValues(info.fileName, dispName, info.lastPlayed.ToString(), g => { SceneData.targetWorld = g.worldName; playEvent.Invoke(); }, g => ConfirmDelete(g.worldName));
-        entries.Add(scriptEntiry);
+        var scriptEntry = entry.GetComponent<WorldEntry>();
+        scriptEntry.SetValues(info.fileName, dispName, info.lastPlayed.ToString(), g => { SceneData.targetWorld = g.worldName; playEvent.Invoke(); }, g => ConfirmDelete(g.worldName));
+        entries.Add(scriptEntry);
         index++;
     }
     public void Reset()
